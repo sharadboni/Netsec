@@ -1,7 +1,7 @@
 # ahmet
 # ChatServer.py
 
-import datetime
+import time
 import json
 
 # message types
@@ -13,11 +13,11 @@ EXIT = 'EXIT'
 
 class Message():
 
-    def __init__(self, _type, msg, time):
+    def __init__(self, _type, msg=None):
 
         self.type = _type
         self.msg = msg
-        self.time = time
+        self.time = time.time()
 
         self.json = json.dumps(
             {'type': self._type, 'msg': self.msg, 'time': self.time})
