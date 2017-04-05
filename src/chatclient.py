@@ -22,13 +22,17 @@ class Client():
             print 'Error while creating the socket :', e
             exit(1)
 	
-    def login(username,password):
+    def login(self,username,password):
 	    pass
-    def send_message():
+    def logout(self):
+	pass
+    def list_users(self):
+		pass	
+    def send_message(self):
 	    pass
-    def receive_message():
+    def receive_message(self):
 	    pass
-    def parse_args(): 
+    def parse_args(self): 
      args=sys.argv[1:]
      for i in xrange(0,len(args),2):
 
@@ -39,10 +43,7 @@ class Client():
 	      elif args[i]=="-p":
 
 		      password=args[i+1]
-
-
-
-      if username=="" or password=="":
+     if username=="" or password=="":
 
           print 'chatclient.py -u username -p password'
 
