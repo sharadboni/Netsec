@@ -13,7 +13,7 @@ EXIT = 'EXIT'
 
 class Message():
 
-    def __init__(self, _type, msg, time):
+    def __init__(self, _type, msg=None, time=None):
 
         self.type = _type
         self.msg = msg
