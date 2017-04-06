@@ -13,8 +13,8 @@ class Client():
         try:
 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	    self.server_port=SERVER_PORT
-	    self.server_ip=SERVER_IP
+	    self.server_port=Message.SERVER_PORT
+	    self.server_ip=Message.SERVER_IP
 	    self.target_ip=None
 	    self.target_port=None
 
@@ -23,15 +23,21 @@ class Client():
             exit(1)
 	
     def login(self,username,password):
-	    pass
+	#encrypt with servers public key which will have its settings in the configuration file
+	self.send_message(self.server_ip,self.server_port,Message.Message(SIGN-IN,userame+" "+password).json)
+	
     def logout(self):
-	pass
+	self.send_message(self.server_ip,self.server_port,Message.Message(EXIT).json)
+	
     def list_users(self):
-		pass	
-    def send_message(self):
-	    pass
+	self.send_message(self.server_ip,self.server_port,Message.Message(LIST).json)
+	
+    def send_message(self,ip,port,message):
+	    self.sock.sendto(message,(ip,port))
+		
     def receive_message(self):
 	    pass
+	
     def parse_args(self): 
      args=sys.argv[1:]
      for i in xrange(0,len(args),2):
