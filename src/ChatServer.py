@@ -6,6 +6,33 @@ import socket
 import datetime
 import json
 import Message
+import Crypt_Functions as CF
+import multiprocessing
+
+
+class Msg_Worker(multiprocessing.Process):
+
+    def __init__(self, server):
+        multiprocessing.Process.__init__(self)
+
+        self.sock = server.sock
+        # multiprocessing queue to store active user info
+        self.queue = server.msg_queue
+
+    def run(self):
+
+        while True:
+
+            try:
+                # msg and source ip-port
+                cipher, addr = self.sock.recvfrom(4096)
+
+                # TODO decrypt msg
+
+                self.queue.put(cipher)
+
+            except Exception as e:
+                print 'Error while receiving a message', e
 
 
 class Server():
@@ -13,9 +40,12 @@ class Server():
     # init with the port number provided
     def __init__(self, port):
 
-        try:
+        # public, private key paths
+        self.sk = None
+        self.pk = None
 
-            self.user_list = []
+        # TODO, port managing
+        try:
 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -31,14 +61,32 @@ class Server():
         # client db (client, public key)
         self.client_db = None
 
+        self.msg_queue = multiprocessing.Queue()
 
-    # SRP
-    def user_login():
+        # worker waits for msg and puts in to queue for further process
+        self.msg_worker = Msg_Worker(self)
+
+    def msg_handler(self):
+
+        msg = self.msg_queue.pop()
+
+        # TODO, call thread for msg types
+
+        # ...
+    
+    #SRP
+    def user_login(self, login_msg):
         pass
 
-    def user_req_message(A, B):
+    # user requested list of users
+    def user_list_request(self, user):
         pass
 
-    # DH
-    def create_session_key(A, B):
+    # A wants to talk with B
+    def user_comm_request(self, A, B):
         pass
+
+    # generate session key between A, B
+    def genereta_session_key(self, A, B):
+        pass
+
