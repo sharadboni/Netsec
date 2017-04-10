@@ -1,3 +1,5 @@
+#Assign list to the internal dictionary
+#see for the unmessaging either implement in the message class itself or implement the receive function itself
 import sys
 import socket
 import Message
@@ -20,7 +22,7 @@ class Client():
 	self.server_port=Message.SERVER_PORT
 	self.server_ip=Message.SERVER_IP
 	self.username=None
-	
+	self.online_users={}
 	try:
 	    self.server_public_key=# To Do
 	    self.private_key=# To Do	
@@ -33,27 +35,54 @@ class Client():
 	self.username=raw_input(">Username: ")
 	password=getpass.getpass(">Password: ")
 	#encrypt with servers public key which will have its settings in the configuration file
-	self.send_message(self.server_ip,self.server_port,Message.Message(SIGN-IN,userame+" "+password).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(SIGN-IN,userame+" "+password).json)
 	
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
-	self.send_message(self.server_ip,self.server_port,Message.Message(EXIT).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(EXIT).json)
 	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
-	self.send_message(self.server_ip,self.server_port,Message.Message(LIST).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(LIST).json)
 	
     def peer_chat(self,ip,port,chat_message):
 	#sends the desired message to the fellow chat peer
-	self.send_message(ip,port,Message.Message(MESSAGE,chat_message).json)
+	self.send_packet(ip,port,Message.Message(MESSAGE,chat_message).json)
 	
-    def send_message(self,ip,port,message):
-	#it sends all type of messages to the desired destination. It is used by all the other functions to send the desired message
+    def send_packet(self,ip,port,message):
+	#it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
 	self.sock.sendto(message,(ip,port))
-		
+	
+    def send_message(self):
+	#it is the controller fr the send_packet function
+	while True:
+		user_input=raw_input(self.username+" > ").split(' ')
+		if user_input[0].lower()=="list":
+			self.list_users()
+		elif user_input[0].lower()=="send":# have to see how to relate the usernames with the ip and port
+			ip,port=self.resolve_username(user_input[1])
+			self.peer_chat(ip,port,user_input[2])
+		elif user_input[0].lower()=="exit":
+			self.logout()
+			exit(0)	
+		else:
+			print 'Use the following commands: 1) list 2) send USERNAME MESSAGE 3) exit'
+	
+    def resolve_username(self,user):
+	#maps the username to the ip address and port to whom the message is being sent
+	ip,port=self.online_users[user]
+	return ip,port
+
     def receive_message(self):
 	#it will receive all kinds of messages and will display the results to the user 
-	pass
+	while True:
+		input_message,addr=client.recvfrom(1024)
+		if input_message.type==LIST:
+			#Assign it to dictionary
+		elif input_message.type==MESSAGE:
+			input_message.print_msg
+		else:
+			"Message received in an unknown format"
 	
     def create_threads(self):
 	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
@@ -75,8 +104,6 @@ def main():
 	else:
 		print 'Wrong Credentials..!!'
 		exit(1)
-	
-	while True:
-		
+	client.create_threads()		
 		
 main()
