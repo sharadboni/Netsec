@@ -23,7 +23,9 @@ class Message():
             {'type': self._type, 'msg': self.msg, 'time': self.time})
 
     def print_msg(self):
-        print self.json
+        self.json=json.loads(self.json)
+        print self.json[msg]
+        
 
     def get_msg(self):
         return self.json
