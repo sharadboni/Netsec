@@ -1,7 +1,5 @@
 import sys
 import socket
-import datetime
-import json
 import Message
 import threading
 import getpass
