@@ -7,19 +7,27 @@ import getpass
 
 class Client():
 
-    def __init__(self, port):
+    def __init__(self):
 
         try:
-
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	    self.server_port=Message.SERVER_PORT
 	    self.server_ip=Message.SERVER_IP
 	    self.target_ip=None
 	    self.target_port=None
-
+	    
         except Exception as e:
             print 'Error while creating the socket :', e
             exit(1)
+
+        try:
+	    threading.Thread(target=self.send_message).start()
+	    threading.Thread(target=self.receive_message).start()
+	    
+        except Exception as e:
+            print 'Error while creating threads :', e
+            exit(1)
+	
 	
     def login(self):
 	#gets the username and password and sends it to the server to get verified
@@ -42,9 +50,18 @@ class Client():
 	
     def send_message(self,ip,port,message):
 	#it sends all type of messages to the desired destination. It is used by all the other functions to send the desired message
-	    self.sock.sendto(message,(ip,port))
+	self.sock.sendto(message,(ip,port))
 		
     def receive_message(self):
 	#it will receive all kinds of messages and will display the results to the user 
-	    pass
+	pass
 	
+    def create_threads(self):
+	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
+	threading.Thread(target=self.send_message).start()
+	threading.Thread(target=self.receive_message).start()
+	
+#start of the main parent execution function for the client chat file
+def main():
+	client=Client()
+main()
