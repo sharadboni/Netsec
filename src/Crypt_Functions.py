@@ -149,8 +149,8 @@ def isPrime(p):
     return True
 
 
-def cryptrand(n=1024, N):
-    return random.SystemRandom().getrandbits(n) % N
+def cryptrand(Num, n=1024):
+    return random.SystemRandom().getrandbits(n) % Num
 
 # SRP implementation
 class SRP_server():
@@ -177,7 +177,7 @@ class SRP_server():
         # pass verifier
         v = pow(self.g, x, self.N)
 
-        # DB ENTRY →  <username,password verifier(v), salt, salt_creation_date>
+        # DB ENTRY   <username,password verifier(v), salt, salt_creation_date>
         return username, v, salt
 
     def srp_server_accept_login(self):
