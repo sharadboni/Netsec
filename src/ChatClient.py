@@ -3,6 +3,7 @@ import socket
 import Message
 import threading
 import getpass
+import Crypt_Functions
 #import config
 
 class Client():
@@ -11,27 +12,25 @@ class Client():
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	    self.server_port=Message.SERVER_PORT
-	    self.server_ip=Message.SERVER_IP
-	    self.target_ip=None
-	    self.target_port=None
 	    
         except Exception as e:
             print 'Error while creating the socket :', e
-            exit(1)
-
-        try:
-	    threading.Thread(target=self.send_message).start()
-	    threading.Thread(target=self.receive_message).start()
-	    
-        except Exception as e:
-            print 'Error while creating threads :', e
-            exit(1)
+            exit(1)	
+		
+	self.server_port=Message.SERVER_PORT
+	self.server_ip=Message.SERVER_IP
+	self.username=None
 	
-	
+	try:
+	    self.server_public_key=# To Do
+	    self.private_key=# To Do	
+	except Exception as e:
+	    print 'Error with public/private key :', e
+            exit(1)				
+		
     def login(self):
 	#gets the username and password and sends it to the server to get verified
-	username=raw_input(">Username: ")
+	self.username=raw_input(">Username: ")
 	password=getpass.getpass(">Password: ")
 	#encrypt with servers public key which will have its settings in the configuration file
 	self.send_message(self.server_ip,self.server_port,Message.Message(SIGN-IN,userame+" "+password).json)
@@ -58,10 +57,26 @@ class Client():
 	
     def create_threads(self):
 	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
-	threading.Thread(target=self.send_message).start()
-	threading.Thread(target=self.receive_message).start()
+        try:
+	    threading.Thread(target=self.send_message).start()
+	    threading.Thread(target=self.receive_message).start()
+	    
+        except Exception as e:
+            print 'Error while creating threads :', e
+            exit(1)
 	
 #start of the main parent execution function for the client chat file
 def main():
 	client=Client()
+	client.login()
+	authentication_results=client.receive_message()
+	If ""!=authentication_results: 	#yet to be done
+		pass
+	else:
+		print 'Wrong Credentials..!!'
+		exit(1)
+	
+	while True:
+		
+		
 main()
