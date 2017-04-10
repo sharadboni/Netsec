@@ -48,5 +48,3 @@ class Client():
 	#it will receive all kinds of messages and will display the results to the user 
 	    pass
 	
-    def parse_args(self): 
-	
