@@ -31,7 +31,6 @@ class UnMessage():
         self.time = self.json['time']
         self.username=self.json['username']
         
-
     def get_message(self):
         return self.msg
     
