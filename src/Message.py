@@ -2,6 +2,7 @@
 
 import time
 import json
+import Crypt_Functions
 
 # message types
 SIGNIN = 'SIGN-IN'
