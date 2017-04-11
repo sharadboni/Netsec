@@ -1,11 +1,9 @@
-#Assign list to the internal dictionary
-#see for the unmessaging either implement in the message class itself or implement the receive function itself
+#Assign list to the internal dictionary in receive message
 import sys
 import socket
 import Message
 import threading
 import getpass
-import Crypt_Functions
 #import config
 
 class Client():
@@ -77,10 +75,11 @@ class Client():
 	#it will receive all kinds of messages and will display the results to the user 
 	while True:
 		input_message,addr=client.recvfrom(1024)
-		if input_message.type==LIST:
-			#Assign it to dictionary
-		elif input_message.type==MESSAGE:
-			input_message.print_msg
+		input_message=UnMessage(input_message)
+		if input_message.get_type==LIST:
+			#Assign it to the dictionary
+		elif input_message.get_type==MESSAGE:
+			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
 		else:
 			"Message received in an unknown format"
 	
