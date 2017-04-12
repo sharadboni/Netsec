@@ -7,6 +7,8 @@ import math
 import os
 import random
 import getpass
+import binascii
+
 # BLOCK_SIZE = 16
 # key = os.urandom(BLOCK_SIZE)
 # iv = os.urandom(BLOCK_SIZE)
@@ -14,7 +16,6 @@ import getpass
 
 
 def aes_ctr(msg, key, ctr):
-
 
     cipher = Cipher(algorithms.AES(key), modes.CTR(ctr),
                     backend=default_backend())
@@ -75,15 +76,48 @@ def rsa_dec_der(ciphertext, sk_path):
     return msg
 
 
-def df_key_exchange(peer_public_key):
+class Diffie_Hellman:
 
-    parameters = dh.generate_parameters(
-        generator=2, key_size=2048, backend=default_backend())
+    def __init__(self):
 
-    private_key = parameters.generate_private_key()
-    shared_key = private_key.exchange(peer_public_key)
-    return shared_key
+        # 2048bit primes
+        # generator = 2
+        self.parameters = dh.generate_parameters(
+            generator=2, key_size=2048, backend=default_backend())
+        self.private = self.parameters.generate_private_key()
+        self.public = self.private.public_key()
 
+    def get_private_key(self):
+        """ Return the private key (a) """
+        return self.private
+
+    def get_public_key(self):
+        return self.public
+
+    # amirali
+    def check_other_public_key(self, other_contribution):
+        # check if the other public key is valid based on NIST SP800-56
+        # 2 <= g^b <= p-2 and Lagrange for safe primes (g^bq)=1, q=(p-1)/2
+
+        if 2 <= other_contribution and other_contribution <= self.p - 2:
+            if pow(other_contribution, (self.p - 1) // 2, self.p) == 1:
+                return True
+        return False
+
+    def df_key_exchange(self, peer_public_key):
+        shared_key = private_key.exchange(peer_public_key)
+        
+        return shared_key
+
+
+    # create diffie-hellman values
+
+    # encrypt it with public key of B
+
+
+    # return encrypted {g^a}_pk-receiver
+
+    
 
 def hash_sha256(inp):
 
@@ -152,6 +186,7 @@ def isPrime(p):
 def cryptrand(Num, n=1024):
     return random.SystemRandom().getrandbits(n) % Num
 
+
 # SRP implementation
 class SRP_server():
 
@@ -209,13 +244,15 @@ class SRP_server():
 
 class SRP_client():
 
-    def __init__(self, g, N):
+    def __init__(self, username, password, client, g, N):
+
+        self.client = client
 
         self.g = g
         self.N = N
 
-        self.username = 'username'
-        self.password = 'password'
+        self.username = username
+        self.password = password
 
         self.session_key = 'key'
 
@@ -223,8 +260,8 @@ class SRP_client():
 
         # get username(I), password
 
-        self.username = raw_input('Enter Username: ')
-        self.password = getpass.getpass('Enter password: ')
+        # self.username = raw_input('Enter Username: ')
+        # self.password = getpass.getpass('Enter password: ')
 
     # 1
         a = cryptrand(N=self.N)
@@ -233,6 +270,11 @@ class SRP_client():
         # TODO
         # send username, A
         # get salt, B
+
+        txt = a+A
+        msg = rsa_enc_der(self.client.server_pub, tex)
+        self.client.send_message()
+
 
         server_B = ''
         salt = 'salt'
@@ -251,4 +293,6 @@ class SRP_client():
 
     # TODO
     # send proof of session key
+
+
 
