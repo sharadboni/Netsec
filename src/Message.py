@@ -1,4 +1,5 @@
 #planning to encrypt and decrypt the messages here only in the classes Message and UnMessage
+#estab key phases "no of sequences" ? how to handle that
 
 import time
 import json
@@ -9,7 +10,8 @@ SIGNIN = 'SIGN-IN'
 LIST = 'LIST'
 MESSAGE = 'MESSAGE'
 EXIT = 'EXIT'
-
+GET_PUB_KEY='GET_KEY'
+ESTAB_KEY='ESTAB_KEY'
 
 class Message():
 
@@ -21,6 +23,10 @@ class Message():
         self.username=username
         self.json = json.dumps(
             {'type': self.type,'username': self.username, 'msg': self.msg, 'time': self.time})
+    
+    def encrypt_msg():
+        pass
+    
 
 class UnMessage():
     
@@ -42,3 +48,6 @@ class UnMessage():
     
     def get_username(self):
         return self.username
+    
+    def decrypt_msg(self):
+        pass
