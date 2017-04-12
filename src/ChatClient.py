@@ -1,4 +1,5 @@
 #Assign list to the internal dictionary in receive message
+#ESTAB KEY in receive func
 import sys
 import socket
 import Message
@@ -21,6 +22,8 @@ class Client():
 	self.server_ip=Message.SERVER_IP
 	self.username=None
 	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
+	self.session_keys={} #has public key of the users that the current user has communicated with
+	self.public_keys={} # stores the public keys of the teh chat users temporarily and deletes it once the session has been established
 	try:
 	    self.server_public_key=# To Do
 	    self.private_key=# To Do	
@@ -50,6 +53,17 @@ class Client():
     def send_packet(self,ip,port,message):
 	#it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
 	self.sock.sendto(message,(ip,port))
+
+    def get_pub_key_from_server(self,username):
+	#request the public key of the chat user from the server
+	self.send_packet(ip,port,Message.Message(GET_PUB_KEY,self.username,username).json)
+	
+    def establish_key(self,username):
+	#establishes the key with the fellow chat user
+	self.get_pub_key_from_server(username)
+	while not self.key_present(username,"PUBLIC"):
+		pass
+	self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,username).json)
 	
     def send_message(self):
 	#it is the controller fr the send_packet function
@@ -59,6 +73,10 @@ class Client():
 			self.list_users()
 		elif user_input[0].lower()=="send":# have to see how to relate the usernames with the ip and port
 			ip,port=self.resolve_username(user_input[1])
+			if not self.key_present(user_input[1],"SESSION"):
+				self.establish_key(user_input[1])
+			while not self.key_present(user_input[1],"SESSION"):
+				pass
 			self.peer_chat(ip,port,user_input[2])
 		elif user_input[0].lower()=="exit":
 			self.logout()
@@ -80,9 +98,20 @@ class Client():
 			#Assign it to the dictionary
 		elif input_message.get_type==MESSAGE:
 			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
+		elif input_message.get_type==ESTAB_KEY:
+			#to do
 		else:
 			"Message received in an unknown format"
+			
+    def key_present(username,_key):
+	if _key=="PUBLIC":
+		if username in self.public_keys:
+			return True
+		return False
 	
+	if username in self.session_keys:
+		return True
+	return False	
     def create_threads(self):
 	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
         try:
