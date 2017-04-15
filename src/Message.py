@@ -37,7 +37,8 @@ class Msg_Worker(multiprocessing.Process):
                 msg, addr = self.sock.recvfrom(4096)
 
                 self.queue.put((msg, addr))
-
+            except Exception as e:
+                print i 
 
 
 class Message():
@@ -53,16 +54,6 @@ class Message():
     
     def encrypt_msg():
         pass
-    
-
-class UnMessage():
-    
-    def __init__(self,data):
-        self.json = json.loads(data)
-        self.type = self.json['type']
-        self.msg = self.json['msg']
-        self.time = self.json['time']
-        self.username=self.json['username']
         
     def get_message(self):
         return self.msg
@@ -78,3 +69,14 @@ class UnMessage():
     
     def decrypt_msg(self):
         pass
+
+
+def UnMessage(data):
+    
+    msg = Message(data.json['type'], data.json['username'])
+
+    msg.json = json.loads(data)
+    msg.time = data.json['time']
+
+    return msg
+        
