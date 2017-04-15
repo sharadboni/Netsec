@@ -56,18 +56,15 @@ class Client():
 	# receive reply from server.
 	# TODO
 	B, salt = get_reply()
-		
 	try:
 		Key = SRP_client.srp_create_session_key(B, salt)
 
 		if Key:
 			self.session_keys['server'] = Key
 		else:
-		
 			print "!! Login Unsuccessfull"
 			exit(1)
 	except Exception as e:
-
 		print "!! Login Unsuccessfull"
 	
 
@@ -90,27 +87,41 @@ class Client():
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
 	self.send_packet(ip,port,Message.Message(GET_PUB_KEY,self.username,username).json)
+			 
+    def tcp_establish_key_listener(self,ip,port):
+		#create a tcp connection
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,ip+" "+tcp_port).json)	#self reports its own tcp_port to the user on the other end
+		#wait for connection to establish and key establishment to be done
+		#close the tcp connection 	 
 	
-    def establish_key(self,username):
+    def tcp_establish_key_sender(self,ip,port):
+		#opens a tcp port	 
+		#sends a connection response to the listener	
+		#closes the connection	 
+			 
+    def establish_key(self,username,ip,port,msg):
 	#establishes the key with the fellow chat user
 	self.get_pub_key_from_server(username)
 	while not self.key_present(username,"PUBLIC"):
 		pass
-	self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,username).json)
-	
+	self.tcp_establish_key_listener(ip,port)
+	self.peer_chat(ip,port,msg)
+			 
     def send_message(self):
 	#it is the controller fr the send_packet function
 	while True:
 		user_input=raw_input(self.username+" > ").split(' ')
 		if user_input[0].lower()=="list":
 			self.list_users()
-		elif user_input[0].lower()=="send":# have to see how to relate the usernames with the ip and port
+		elif user_input[0].lower()=="send":
 			ip,port=self.resolve_username(user_input[1])
 			if not self.key_present(user_input[1],"SESSION"):
-				self.establish_key(user_input[1])
-			while not self.key_present(user_input[1],"SESSION"):
-				pass
-			self.peer_chat(ip,port,user_input[2])
+        			try:
+	    				threading.Thread(target=self.establish_key,args=(user_input[1],ip,port,user_input[2])).start()
+        			except Exception as e:
+            				print 'Error while creating threads :', e		 
+			else: 
+				self.peer_chat(ip,port,user_input[2])
 		elif user_input[0].lower()=="exit":
 			self.logout()
 			exit(0)	
@@ -121,21 +132,7 @@ class Client():
 	#maps the username to the ip address and port to whom the message is being sent
 	ip,port=self.online_users[user]
 	return ip,port
-
-    def receive_message(self):
-	#it will receive all kinds of messages and will display the results to the user 
-	while True:
-		input_message,addr=self.recvfrom(1024)
-		input_message=UnMessage(input_message)
-		if input_message.get_type==LIST:
-			#Assign it to the dictionary
-		elif input_message.get_type==MESSAGE:
-			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
-		elif input_message.get_type==ESTAB_KEY:
-			#to do
-		else:
-			"Message received in an unknown format"
-			
+			 
     def key_present(username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
@@ -144,7 +141,22 @@ class Client():
 	
 	if username in self.session_keys:
 		return True
-	return False	
+	return False
+			 
+    def receive_message(self):
+	#it will receive all kinds of messages and will display the results to the user 
+	while True:
+		input_message,addr=self.sock.recvfrom(1024)
+		input_message=UnMessage(input_message)
+		if input_message.get_type==LIST:
+			#Assign it to the dictionary
+		elif input_message.get_type==MESSAGE:
+			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
+		elif input_message.get_type==ESTAB_KEY:
+			self.tcp_establish_key_sender(addr[0],addr[1])
+		else:
+			"Message received in an unknown format"	
+			 
     def create_threads(self):
 	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
         try:
