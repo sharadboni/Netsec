@@ -1,4 +1,3 @@
-#Assign list to the internal dictionary in receive message
 #tcp diffie hellman not in message unmessage format.
 import sys
 import socket
@@ -97,7 +96,7 @@ class Client():
 		tcp_socket.listen(1)
 		p=generate_prime(n=1024)
 		df=CF.Diffie_Hellman(p,2)	 
-		conn, addr = s.accept()     # Establish connection with client.
+		conn, addr = tcp_socket.accept()     # Establish connection with client.
    		conn.send((df.get_public_key(),p))
 		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
 		self.shared_keys[username]=shared_key	 
@@ -112,7 +111,7 @@ class Client():
 		tcp_socket.connect((host, port))
 		(public_key,p)=tcp_socket.recv(1024)
 		df=CF.Diffie_Hellman(p,2)
-		conn.send(df.get_public_key())
+		tcp_socket.send(df.get_public_key())
 		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
 		self.shared_keys[username]=shared_key	 
 		tcp_socket.close 	 
@@ -168,11 +167,11 @@ class Client():
 	while True:
 		input_message,addr=self.sock.recvfrom(1024)
 		input_message=UnMessage(input_message)
-		if input_message.get_type==LIST:
-			#Assign it to the dictionary
-		elif input_message.get_type==MESSAGE:
+		if input_message.get_type()==LIST:
+			self.online_users=input_message.get_message()
+		elif input_message.get_type()==MESSAGE:
 			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
-		elif input_message.get_type==ESTAB_KEY:
+		elif input_message.get_type()==ESTAB_KEY:
         		try:
 	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()
         		except Exception as e:
