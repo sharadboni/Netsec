@@ -89,13 +89,26 @@ class Client():
 	self.send_packet(ip,port,Message.Message(GET_PUB_KEY,self.username,username).json)
 			 
     def tcp_establish_key_listener(self,ip,port):
-		#create a tcp connection
+		#create a tcp server
+		tcp_socket = socket.socket()         # Create a socket object
+		host = socket.gethostname() # Get local machine name
+		port = 12345                # Reserve a port for your service.
+		tcp_socket.bind((host, port))        # Bind to the port
+		tcp_socket.listen(5)
+		while True:
+ 		  	conn, addr = s.accept()     # Establish connection with client.
+   			conn.send('Thank you for connecting')
+			conn.close() 
+		tcp_socket.close	 
 		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,ip+" "+tcp_port).json)	#self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 	
     def tcp_establish_key_sender(self,ip,port):
-		#opens a tcp port	 
+		#opens a tcp port	
+		tcp_socket.connect((host, port))
+		print tcp_socket.recv(1024)
+		tcp_socket.close 	 
 		#sends a connection response to the listener	
 		#closes the connection	 
 			 
