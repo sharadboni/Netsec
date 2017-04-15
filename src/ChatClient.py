@@ -159,12 +159,6 @@ class Client():
 def main():
 	client=Client()
 	client.login()
-	authentication_results=client.receive_message()
-	If ""!=authentication_results: 	#yet to be done
-		pass
-	else:
-		print 'Wrong Credentials..!!'
-		exit(1)
 	client.create_threads()		
 		
 main()
