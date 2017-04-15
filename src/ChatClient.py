@@ -125,7 +125,7 @@ class Client():
     def receive_message(self):
 	#it will receive all kinds of messages and will display the results to the user 
 	while True:
-		input_message,addr=client.recvfrom(1024)
+		input_message,addr=self.recvfrom(1024)
 		input_message=UnMessage(input_message)
 		if input_message.get_type==LIST:
 			#Assign it to the dictionary
@@ -159,12 +159,6 @@ class Client():
 def main():
 	client=Client()
 	client.login()
-	authentication_results=client.receive_message()
-	If ""!=authentication_results: 	#yet to be done
-		pass
-	else:
-		print 'Wrong Credentials..!!'
-		exit(1)
 	client.create_threads()		
 		
 main()
