@@ -94,13 +94,12 @@ class Client():
 		host = socket.gethostname() # Get local machine name
 		port = 12345                # Reserve a port for your service.
 		tcp_socket.bind((host, port))        # Bind to the port
-		tcp_socket.listen(5)
-		while True:
- 		  	conn, addr = s.accept()     # Establish connection with client.
-   			conn.send('Thank you for connecting')
-			conn.close() 
+		tcp_socket.listen(1)
+		conn, addr = s.accept()     # Establish connection with client.
+   		conn.send('Thank you for connecting')
+		conn.close() 
 		tcp_socket.close	 
-		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json)	#self reports its own tcp_port to the user on the other end
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json) #self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 	
