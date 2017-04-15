@@ -88,25 +88,33 @@ class Client():
 	#request the public key of the chat user from the server
 	self.send_packet(ip,port,Message.Message(GET_PUB_KEY,self.username,username).json)
 			 
-    def tcp_establish_key_listener(self,ip,port):
+    def tcp_establish_key_listener(self,ip,port,username):
 		#create a tcp server
 		tcp_socket = socket.socket()         # Create a socket object
 		host = socket.gethostname() # Get local machine name
 		port = 12345                # Reserve a port for your service.
 		tcp_socket.bind((host, port))        # Bind to the port
 		tcp_socket.listen(1)
+		p=generate_prime(n=1024)
+		df=CF.Diffie_Hellman(p,2)	 
 		conn, addr = s.accept()     # Establish connection with client.
-   		conn.send('Thank you for connecting')
+   		conn.send((df.get_public_key(),p))
+		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
+		self.shared_keys[username]=shared_key	 
 		conn.close() 
 		tcp_socket.close	 
 		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json) #self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 	
-    def tcp_establish_key_sender(self,ip,port):
+    def tcp_establish_key_sender(self,ip,port,username):
 		#opens a tcp port	
 		tcp_socket.connect((host, port))
-		print tcp_socket.recv(1024)
+		(public_key,p)=tcp_socket.recv(1024)
+		df=CF.Diffie_Hellman(p,2)
+		conn.send(df.get_public_key())
+		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
+		self.shared_keys[username]=shared_key	 
 		tcp_socket.close 	 
 		#sends a connection response to the listener	
 		#closes the connection	 
@@ -116,7 +124,7 @@ class Client():
 	self.get_pub_key_from_server(username)
 	while not self.key_present(username,"PUBLIC"):
 		pass
-	self.tcp_establish_key_listener(ip,port)
+	self.tcp_establish_key_listener(ip,port,username)
 	self.peer_chat(ip,port,msg)
 			 
     def send_message(self):
@@ -166,7 +174,7 @@ class Client():
 			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
 		elif input_message.get_type==ESTAB_KEY:
         		try:
-	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message())).start()
+	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()
         		except Exception as e:
             			print 'Error while creating threads :', e			 
 		else:
