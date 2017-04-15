@@ -1,5 +1,5 @@
 #Assign list to the internal dictionary in receive message
-#ESTAB KEY in receive func
+#tcp diffie hellman not in message unmessage format.
 import sys
 import socket
 import Message
