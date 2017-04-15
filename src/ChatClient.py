@@ -6,6 +6,11 @@ import Message
 import threading
 import getpass
 #import config
+import Crypt_Functions as CF
+
+PRIME_SIZE = 1024
+g = 2
+
 
 class Client():
 
@@ -29,15 +34,43 @@ class Client():
 	    self.private_key=# To Do	
 	except Exception as e:
 	    print 'Error with public/private key :', e
-            exit(1)				
-		
+            exit(1)
+
     def login(self):
 	#gets the username and password and sends it to the server to get verified
 	self.username=raw_input(">Username: ")
 	password=getpass.getpass(">Password: ")
 	#encrypt with servers public key which will have its details in the configuration file
-	self.send_packet(self.server_ip,self.server_port,Message.Message(SIGN-IN,self.username,password).json)
 	
+	# SRP authentication
+	
+	#safe prime
+	N = CF.generate_prime(PRIME_SIZE)
+	# SRP client
+	SRP_client = CF.SRP_client(self.username, password, self, g, N)	
+	# login msg encrypted with server public key
+	login_msg = SRP_client.srp_client_login_msg()
+
+	self.send_packet(self.server_ip,self.server_port,Message.Message(SIGN-IN,self.username, login_msg)
+	
+	# receive reply from server.
+	# TODO
+	B, salt = get_reply()
+		
+	try:
+		Key = SRP_client.srp_create_session_key(B, salt)
+
+		if Key:
+			self.session_keys['server'] = Key
+		else:
+		
+			print "!! Login Unsuccessfull"
+			exit(1)
+	except Exception as e:
+
+		print "!! Login Unsuccessfull"
+	
+
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
 	self.send_packet(self.server_ip,self.server_port,Message.Message(EXIT,self.username).json)

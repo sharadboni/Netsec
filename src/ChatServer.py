@@ -1,4 +1,4 @@
-# ahmet
+# Sharad,Ahmet
 # ChatServer.py
 
 import sys
@@ -66,6 +66,9 @@ class Server():
         # worker waits for msg and puts in to queue for further process
         self.msg_worker = Msg_Worker(self)
 
+        self.session_keys = {}
+        self.online_users = {}
+
     def msg_handler(self):
 
         msg = self.msg_queue.pop()
@@ -73,10 +76,24 @@ class Server():
         # TODO, call thread for msg types
 
         # ...
-    
-    #SRP
-    def user_login(self, login_msg):
-        pass
+
+    # SRP
+    def user_SRP_login(self, login_msg):
+
+        # TODO
+        # get user login msg = {'username': self.username, 'A': self.A, 'N': self.N}
+
+        username, A, N = get_user_login_msg()
+
+        SRP_server = CF.SRP_server(N)
+
+        key = CF.srp_server_accept_login(username, A)
+
+        # TODO
+        # verify proof of session key
+
+
+        self.session_keys[username] = key
 
     # user requested list of users
     def user_list_request(self, user):

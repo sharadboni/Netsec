@@ -3,11 +3,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as padding2
 from cryptography.hazmat.primitives.asymmetric import dh
-import math
-import os
+
 import random
-import getpass
-import binascii
 
 # BLOCK_SIZE = 16
 # key = os.urandom(BLOCK_SIZE)
@@ -32,6 +29,7 @@ def aes_ctr_decrypt(cipher_text, key, ctr):
     msg = decryptor.update(cipher_text) + decryptor.finalize()
 
     return msg
+
 
 def hmac_sha256(msg, key):
 
@@ -78,12 +76,15 @@ def rsa_dec_der(ciphertext, sk_path):
 
 class Diffie_Hellman:
 
-    def __init__(self):
+    # generate prime with generate_prime
+    def __init__(self, p, g):
 
         # 2048bit primes
         # generator = 2
-        self.parameters = dh.generate_parameters(
-            generator=2, key_size=2048, backend=default_backend())
+        self.pn = dh.DHParameterNumbers(p, g)
+        self.parameters = self.pn.parameters(default_backend())
+        # dh.generate_parameters(
+        #     generator=2, key_size=2048, backend=default_backend())
         self.private = self.parameters.generate_private_key()
         self.public = self.private.public_key()
 
@@ -105,19 +106,14 @@ class Diffie_Hellman:
         return False
 
     def df_key_exchange(self, peer_public_key):
-        shared_key = private_key.exchange(peer_public_key)
-        
+        shared_key = self.private.exchange(peer_public_key)
+
         return shared_key
 
-
     # create diffie-hellman values
-
     # encrypt it with public key of B
-
-
     # return encrypted {g^a}_pk-receiver
 
-    
 
 def hash_sha256(inp):
 
@@ -190,15 +186,13 @@ def cryptrand(Num, n=1024):
 # SRP implementation
 class SRP_server():
 
-    def __init__(self, g, N):
+    def __init__(self, N):
 
-        self.g = g
+        self.g = 2
         self.N = N
 
         N_g = self.N + self.g
         self.k = hash_sha256(N_g)
-
-        self.session_key = 'key'
 
     def srp_server_pass_verf(self, username, password):
 
@@ -215,17 +209,11 @@ class SRP_server():
         # DB ENTRY   <username,password verifier(v), salt, salt_creation_date>
         return username, v, salt
 
-    def srp_server_accept_login(self):
-
-    # TODO
-    # get username, client_A
-
-        username = 'username'
-        client_A = ''
+    def srp_server_accept_login(self, username, client_A):
 
     # 2
     # TODO
-    # get salt and pass verifier for username
+    # get salt and pass verifier for username from db
         v = 'verification'
         salt = 'salt'  # self.get_salt_username(username)
 
@@ -236,7 +224,9 @@ class SRP_server():
         u = hash_sha256(client_A + B)
 
     # 5
-        self.session_key = hash_sha256(pow(client_A * pow(v, u, self.N), b, self.N))
+        session_key = hash_sha256(pow(client_A * pow(v, u, self.N), b, self.N))
+
+        return session_key
 
     # TODO
     # verify proof of session key
@@ -250,13 +240,14 @@ class SRP_client():
 
         self.g = g
         self.N = N
+        self.A = ''
 
         self.username = username
         self.password = password
 
         self.session_key = 'key'
 
-    def srp_client_login(self):
+    def srp_client_login_msg(self):
 
         # get username(I), password
 
@@ -264,24 +255,27 @@ class SRP_client():
         # self.password = getpass.getpass('Enter password: ')
 
     # 1
-        a = cryptrand(N=self.N)
-        A = pow(self.g, a, self.N)
+        msg = ''
+        try:
+            a = cryptrand(N=self.N)
+            self.A = pow(self.g, a, self.N)
 
-        # TODO
-        # send username, A
-        # get salt, B
+            msg = {'username': self.username, 'A': self.A, 'N': self.N}
 
-        txt = a+A
-        msg = rsa_enc_der(self.client.server_pub, tex)
-        self.client.send_message()
+        except Exception as e:
 
+            print e
+            exit(1)
 
-        server_B = ''
-        salt = 'salt'
+        return msg
+
+    def srp_create_session_key(self, B, salt):
+
+        server_B = B
 
     # 3 Random scrambling parameter
 
-        u = hash_sha256(A + server_B)
+        u = hash_sha256(self.A + server_B)
 
     # 4
 
