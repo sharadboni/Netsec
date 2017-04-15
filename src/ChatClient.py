@@ -175,7 +175,9 @@ class Client():
         		try:
 	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()
         		except Exception as e:
-            			print 'Error while creating threads :', e			 
+            			print 'Error while creating threads :', e
+		elif input_message.get_type()==PUB_KEY:
+			 self.public_keys[input_message.get_username()]=input_message.get_message()
 		else:
 			"Message received in an unknown format"	
 			 
