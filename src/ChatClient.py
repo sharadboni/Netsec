@@ -100,7 +100,7 @@ class Client():
    			conn.send('Thank you for connecting')
 			conn.close() 
 		tcp_socket.close	 
-		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,ip+" "+tcp_port).json)	#self reports its own tcp_port to the user on the other end
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json)	#self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 	
@@ -166,7 +166,10 @@ class Client():
 		elif input_message.get_type==MESSAGE:
 			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
 		elif input_message.get_type==ESTAB_KEY:
-			self.tcp_establish_key_sender(addr[0],addr[1])
+        		try:
+	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message())).start()
+        		except Exception as e:
+            			print 'Error while creating threads :', e			 
 		else:
 			"Message received in an unknown format"	
 			 
