@@ -39,19 +39,20 @@ def user_db():
 
     # Create table
     c.execute('''CREATE TABLE users
-                 ( username text, verifier text, salt text)''')
+                 ( username text, verifier text, salt text, N int)''')
 
-    for i in names:
+    with open('/Users/ahmet/Documents/6.2/net_sec/final_project/Netsec/data/DBs/passwd', 'w') as f:
+        for i in names:
 
-        passwd_hash = str(CF.hash_sha256(''.join(random.choice(
-            string.ascii_uppercase + string.digits) for _ in range(8))))
+            passwd = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
 
-        salt = ''.join(random.choice(string.ascii_uppercase + string.digits)
-                       for _ in range(8))
+            u = CF.SRP_client(i, passwd, None)
 
-        print(i, passwd_hash, salt)
-        c.execute('''Insert into users Values (?,?,?)''',
-                  (i, passwd_hash, salt))
+            username, v, salt, N = u.srp_client_pass_verf()
+
+            print >>f, (username, passwd, salt)
+            c.execute('''Insert into users Values (?,?,?,?)''',
+                      (i, str(v), str(salt), N))
 
     conn.commit()
 
@@ -79,15 +80,15 @@ def user_keys():
 
         pem_p = public_key.public_bytes(encoding=serialization.Encoding.PEM,
                                         format=serialization.PublicFormat.SubjectPublicKeyInfo)
-        fp = folder + "key.pub"
-        fs = folder + "key"
+        fp = folder + "key_pub.pem"
+        fs = folder + "key.pem"
 
         with open(fp, 'w') as f:
-            for i in pem_p.splitlines():
-                print >>f, i
+            f.write(pem_p)
 
         with open(fs, 'w') as f:
-            for i in pem_s.splitlines():
-                print >>f, i
+            f.write(pem_s)
+
+
 user_db()
-user_keys()
+# user_keys()
