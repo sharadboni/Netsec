@@ -1,4 +1,5 @@
 #tcp diffie hellman not in message unmessage format.
+#have to delete session keys once a user log outs
 import sys
 import socket
 import Message
@@ -32,6 +33,7 @@ class Client():
 	self.server_ip = kf["server_ip"]
 	self.username=None
 	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
+	self.ip_port_users={} #reverse mapping of (ip,port) to users
 	self.session_keys={} #has public key of the users that the current user has communicated with
 	self.public_keys={} # stores the public keys of the teh chat users temporarily and deletes it once the session has been established
 	try:
@@ -56,9 +58,13 @@ class Client():
 	# login msg encrypted with server public key
 	login_msg = SRP_client.srp_client_login_msg()
 
+<<<<<<< HEAD
 	print "sending srp login msg with username, A , N"
 	print Message.Message(Message.LOGIN,self.username, login_msg).json
 	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, login_msg).json )
+=======
+	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, self.public_keys, self.session_keys,'server', login_msg).encrypted_message )
+>>>>>>> e495c4ef7b9dd5b2aaa0c54370ab90779151ef3a
 	
 	print 'Waiting for srp login reply...'
 	srp_reply, addr=self.sock.recvfrom(1024)
@@ -89,15 +95,15 @@ class Client():
 
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
-	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
 	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
-	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LIST,self.username).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LIST,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
 	
-    def peer_chat(self,ip,port,chat_message):
+    def peer_chat(self,ip,port,chat_message,username):
 	#sends the desired message to the fellow chat peer
-	self.send_packet(ip,port,Message.Message(Message.MESSAGE,self.username,chat_message).json)
+	self.send_packet(ip,port,Message.Message(Message.MESSAGE,self.username,self.public_keys, self.session_keys,username,chat_message).encrypted_message)
 	
     def send_packet(self,ip,port,message):
 	#it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
@@ -105,7 +111,7 @@ class Client():
 
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
-	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,username).json)
+	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,self.public_keys, self.session_keys,'server',username).encrypted_message)
 			 
     def tcp_establish_key_listener(self,ip,port,username):
 		#create a tcp server
@@ -122,7 +128,7 @@ class Client():
 		self.shared_keys[username]=shared_key	 
 		conn.close() 
 		tcp_socket.close	 
-		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json) #self reports its own tcp_port to the user on the other end
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,self.public_keys, self.session_keys,username,tcp_port).encrypted_message) #self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 	
@@ -144,7 +150,7 @@ class Client():
 	while not self.key_present(username,"PUBLIC"):
 		pass
 	self.tcp_establish_key_listener(ip,port,username)
-	self.peer_chat(ip,port,msg)
+	self.peer_chat(ip,port,msg,username)
 			 
     def send_message(self):
 	#it is the controller fr the send_packet function
@@ -171,7 +177,18 @@ class Client():
 	#maps the username to the ip address and port to whom the message is being sent
 	ip,port=self.online_users[user]
 	return ip,port
-			 
+
+    def resolve_ip_port(self,addr):
+	#maps ip address and port to username from whom the message has come	
+	username=self.ip_port_users[addr]
+	return username
+
+    def user_to_ips(self):
+	temp_ip_port_users={}	
+	for i in self.online_users.keys():
+		temp_ip_port_users[self.online_users[i]]=i
+	self.ip_port_users=temp_ip_port_users
+	
     def key_present(username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
@@ -186,11 +203,13 @@ class Client():
 	#it will receive all kinds of messages and will display the results to the user 
 	while True:
 		input_message,addr=self.sock.recvfrom(1024)
-		input_message=UnMessage(input_message)
+		user=self.resolve_ip_port(addr)
+		input_message=Message.UnMessage(input_message,user)
 		if input_message.get_type()==LIST:
 			self.online_users=input_message.get_message()
+			threading.Thread(target=self.user_to_ips).start()
 		elif input_message.get_type()==MESSAGE:
-			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
+			print "<"+user+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
 		elif input_message.get_type()==ESTAB_KEY:
         		try:
 	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()

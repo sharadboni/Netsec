@@ -3,8 +3,9 @@
 
 import time
 import json
-import Crypt_Functions
+import Crypt_Functions as CF
 import multiprocessing
+import os
 
 
 # message types
@@ -44,7 +45,7 @@ class Msg_Worker(multiprocessing.Process):
 
 class Message():
 
-    def __init__(self, _type, username, msg=None):
+    def __init__(self, _type, username, public_keys, session_keys, to=None, msg=None):
 
         self.type = _type
         self.msg = msg
@@ -52,10 +53,16 @@ class Message():
         self.username=username
         self.json = json.dumps(
             {'type': self.type,'username': self.username, 'msg': self.msg, 'time': self.time})
+        self.encrypted_message=self.encrypt_msg(self.json,_type,to,public_keys, session_keys)
     
-    def encrypt_msg():
-        pass
-        
+    def encrypt_msg(self,message,type,to,public_keys, session_keys):
+        if type!=ESTAB_KEY:
+            ctr=os.urandom(BLOCK_SIZE)        
+            return json.dumps({'encrypted_message': CF.aes_ctr(message,session_keys[to],ctr),'ctr': ctr})
+        else:
+            return json.dumps({'encrypted_message':CF.rsa_enc_der2(message,public_keys[to])})  
+            
+            
     def get_message(self):
         return self.msg
     
@@ -67,18 +74,18 @@ class Message():
     
     def get_username(self):
         return self.username
-    
-    def decrypt_msg(self):
-        pass
 
-
-def UnMessage(data):
-    
-    data = json.loads(data)
-    msg = Message(data['type'], data['username'])
-
-    msg.json = data
-    msg.time = data['time']
-
-    return msg
+def UnMessage(data,user,public_keys, session_keys):
+                             
+    json_data = json.loads(data)
+    if 'ctr' in data:                          
+        key=session_keys[user]                          
+        json_data=CF.aes_ctr_decrypt(data['encrypted_message'], key, data['ctr'])
+    else:
+        key=public_keys[user]
+        json_data=CF.rsa_dec_der2(data['encrypted_message'],key) # write function for it in CF
+    msg=Message.Message(json_data['type'],json_data['username'],msg=json_data['msg'])
+    msg.time=json_data['time']
+    return msg                                     
         
+                              
