@@ -1,4 +1,5 @@
 #tcp diffie hellman not in message unmessage format.
+#have to delete session keys once a user log outs
 import sys
 import socket
 import Message
@@ -32,6 +33,7 @@ class Client():
 	self.server_ip = kf["server_ip"]
 	self.username=None
 	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
+	self.ip_port_users={} #reverse mapping of (ip,port) to users
 	self.session_keys={} #has public key of the users that the current user has communicated with
 	self.public_keys={} # stores the public keys of the teh chat users temporarily and deletes it once the session has been established
 	try:
@@ -164,7 +166,18 @@ class Client():
 	#maps the username to the ip address and port to whom the message is being sent
 	ip,port=self.online_users[user]
 	return ip,port
-			 
+
+    def resolve_ip_port(self,addr):
+	#maps ip address and port to username from whom the message has come	
+	username=self.ip_port_users[addr]
+	return username
+
+    def user_to_ips(self):
+	temp_ip_port_users={}	
+	for i in self.online_users.keys():
+		temp_ip_port_users[self.online_users[i]]=i
+	self.ip_port_users=temp_ip_port_users
+	
     def key_present(username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
@@ -179,11 +192,13 @@ class Client():
 	#it will receive all kinds of messages and will display the results to the user 
 	while True:
 		input_message,addr=self.sock.recvfrom(1024)
-		input_message=Message.UnMessage(input_message)
+		user=self.resolve_ip_port(addr)
+		input_message=Message.UnMessage(input_message,user)
 		if input_message.get_type()==LIST:
 			self.online_users=input_message.get_message()
+			threading.Thread(target=self.user_to_ips).start()
 		elif input_message.get_type()==MESSAGE:
-			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
+			print "<"+user+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
 		elif input_message.get_type()==ESTAB_KEY:
         		try:
 	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()
