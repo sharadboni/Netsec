@@ -58,13 +58,9 @@ class Client():
 	# login msg encrypted with server public key
 	login_msg = SRP_client.srp_client_login_msg()
 
-<<<<<<< HEAD
 	print "sending srp login msg with username, A , N"
-	print Message.Message(Message.LOGIN,self.username, login_msg).json
-	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, login_msg).json )
-=======
+	#self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, login_msg).json )
 	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, self.public_keys, self.session_keys,'server', login_msg).encrypted_message )
->>>>>>> e495c4ef7b9dd5b2aaa0c54370ab90779151ef3a
 	
 	print 'Waiting for srp login reply...'
 	srp_reply, addr=self.sock.recvfrom(1024)
