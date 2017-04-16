@@ -64,31 +64,34 @@ def user_keys():
     keys = "/Users/ahmet/Documents/6.2/net_sec/final_project/Netsec/data/keys/user_keys/"
 
     for i in names:
-        folder = keys + i + '/'
-        cmd = "mkdir " + folder
+        file = keys + i + '/key'
+        cmd = "rm " + file
         os.system(cmd)
 
-        private_key = rsa.generate_private_key(public_exponent=65537,
-                                               key_size=2048,
-                                               backend=default_backend())
+        file = keys + i + '/key.pub'
+        cmd = "rm " + file
+        os.system(cmd)
+        # private_key = rsa.generate_private_key(public_exponent=65537,
+        #                                        key_size=2048,
+        #                                        backend=default_backend())
 
-        pem_s = private_key.private_bytes(encoding=serialization.Encoding.PEM,
-                                          format=serialization.PrivateFormat.PKCS8,
-                                          encryption_algorithm=serialization.NoEncryption())
+        # pem_s = private_key.private_bytes(encoding=serialization.Encoding.PEM,
+        #                                   format=serialization.PrivateFormat.PKCS8,
+        #                                   encryption_algorithm=serialization.NoEncryption())
 
-        public_key = private_key.public_key()
+        # public_key = private_key.public_key()
 
-        pem_p = public_key.public_bytes(encoding=serialization.Encoding.PEM,
-                                        format=serialization.PublicFormat.SubjectPublicKeyInfo)
-        fp = folder + "key_pub.pem"
-        fs = folder + "key.pem"
+        # pem_p = public_key.public_bytes(encoding=serialization.Encoding.PEM,
+        #                                 format=serialization.PublicFormat.SubjectPublicKeyInfo)
+        # fp = folder + "key_pub.pem"
+        # fs = folder + "key.pem"
 
-        with open(fp, 'w') as f:
-            f.write(pem_p)
+        # with open(fp, 'w') as f:
+        #     f.write(pem_p)
 
-        with open(fs, 'w') as f:
-            f.write(pem_s)
+        # with open(fs, 'w') as f:
+        #     f.write(pem_s)
 
 
-user_db()
-# user_keys()
+# user_db()
+user_keys()

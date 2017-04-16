@@ -4,7 +4,7 @@ import socket
 import Message
 import threading
 import getpass
-#import config
+import json
 import Crypt_Functions as CF
 
 PRIME_SIZE = 1024
@@ -21,16 +21,22 @@ class Client():
         except Exception as e:
             print 'Error while creating the socket :', e
             exit(1)	
+
+	# read server.config
+	with open("../data/server.config","r") as f:
+
+		kf = json.load(f)
+
 		
-	self.server_port=Message.SERVER_PORT
-	self.server_ip=Message.SERVER_IP
+	self.server_port = int(kf['server_port'])
+	self.server_ip = kf["server_ip"]
 	self.username=None
 	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
 	self.session_keys={} #has public key of the users that the current user has communicated with
 	self.public_keys={} # stores the public keys of the teh chat users temporarily and deletes it once the session has been established
 	try:
-	    self.server_public_key=# To Do
-	    self.private_key=# To Do	
+	    self.server_public_key=kf["server_pubkey"] # server public key path
+	    #self.private_key= # no need 	
 	except Exception as e:
 	    print 'Error with public/private key :', e
             exit(1)
@@ -44,40 +50,43 @@ class Client():
 	# SRP authentication
 	
 	#safe prime
-	N = CF.generate_prime(PRIME_SIZE)
 	# SRP client
-	SRP_client = CF.SRP_client(self.username, password, self, g, N)	
+	SRP_client = CF.SRP_client(self.username, password, self)	
 	# login msg encrypted with server public key
 	login_msg = SRP_client.srp_client_login_msg()
 
-	self.send_packet(self.server_ip,self.server_port,Message.Message(SIGN-IN,self.username, login_msg)
+	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, login_msg).json )
 	
+	input_message,addr=self.sock.recvfrom(1024)
+	
+	print input_message
+
 	# receive reply from server.
 	# TODO
-	B, salt = get_reply()
-	try:
-		Key = SRP_client.srp_create_session_key(B, salt)
+	#B, salt = 0,0 #get_reply()
+	#try:
+	#	Key = SRP_client.srp_create_session_key(B, salt)
 
-		if Key:
-			self.session_keys['server'] = Key
-		else:
-			print "!! Login Unsuccessfull"
-			exit(1)
-	except Exception as e:
-		print "!! Login Unsuccessfull"
+	#	if Key:
+	#		self.session_keys['server'] = Key
+	#	else:
+	#		print "!! Login Unsuccessfull"
+	#		exit(1)
+	#except Exception as e:
+	#	print "!! Login Unsuccessfull"
 	
 
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
-	self.send_packet(self.server_ip,self.server_port,Message.Message(EXIT,self.username).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username).json)
 	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
-	self.send_packet(self.server_ip,self.server_port,Message.Message(LIST,self.username).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LIST,self.username).json)
 	
     def peer_chat(self,ip,port,chat_message):
 	#sends the desired message to the fellow chat peer
-	self.send_packet(ip,port,Message.Message(MESSAGE,self.username,chat_message).json)
+	self.send_packet(ip,port,Message.Message(Message.MESSAGE,self.username,chat_message).json)
 	
     def send_packet(self,ip,port,message):
 	#it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
@@ -85,7 +94,7 @@ class Client():
 
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
-	self.send_packet(ip,port,Message.Message(GET_PUB_KEY,self.username,username).json)
+	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,username).json)
 			 
     def tcp_establish_key_listener(self,ip,port,username):
 		#create a tcp server
@@ -195,6 +204,6 @@ class Client():
 def main():
 	client=Client()
 	client.login()
-	client.create_threads()		
+	#client.create_threads()		
 		
 main()

@@ -66,13 +66,27 @@ class Server():
         # worker waits for msg and puts in to queue for further process
         self.msg_worker = Msg_Worker(self)
 
+        print "Worker started"
+        self.msg_worker.start()
+
+
         self.session_keys = {}
         self.online_users = {}
 
+
     def msg_handler(self):
 
-        msg = self.msg_queue.pop()
+        plain = self.msg_queue.get()
 
+
+        #plain = CF.rsa_dec_der(msg, "/Users/ahmet/Documents/6.2/net_sec/final_project/Netsec/data/keys/server_keys/key.pem")
+
+
+        msg = json.loads(plain)  # Message.UnMessage(plain)
+        print msg
+
+        if msg['type'] == Message.LOGIN:
+            self.user_SRP_login(msg['msg'])
         # TODO, call thread for msg types
 
         # ...
@@ -83,17 +97,16 @@ class Server():
         # TODO
         # get user login msg = {'username': self.username, 'A': self.A, 'N': self.N}
 
-        username, A, N = get_user_login_msg()
+        SRP_server = CF.SRP_server()
+        print login_msg
+        login_msg = json.loads(login_msg)
+        key = SRP_server.srp_server_accept_login(login_msg['username'], login_msg['A'], login_msg['N'])
 
-        SRP_server = CF.SRP_server(N)
-
-        key = CF.srp_server_accept_login(username, A)
-
+        print "session key :", key
         # TODO
         # verify proof of session key
 
-
-        self.session_keys[username] = key
+        self.session_keys[login_msg['username']] = key
 
     # user requested list of users
     def user_list_request(self, user):
@@ -106,4 +119,8 @@ class Server():
     # generate session key between A, B
     def genereta_session_key(self, A, B):
         pass
+
+if __name__ == '__main__':
+    server = Server(9090)
+    server.msg_handler()
 

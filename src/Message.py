@@ -73,10 +73,11 @@ class Message():
 
 def UnMessage(data):
     
-    msg = Message(data.json['type'], data.json['username'])
+    data = json.loads(data)
+    msg = Message(data['type'], data['username'])
 
-    msg.json = json.loads(data)
-    msg.time = data.json['time']
+    msg.json = data
+    msg.time = data['time']
 
     return msg
         
