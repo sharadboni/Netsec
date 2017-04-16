@@ -99,6 +99,24 @@ def rsa_dec_der(ciphertext, sk_path):
     )
     return msg
 
+def rsa_dec_der2(ciphertext, pk):
+
+    private_key = serialization.load_pem_private_key(
+            str(pk),
+            password=None,
+            backend=default_backend())
+
+    msg = private_key.decrypt(
+        ciphertext,
+        padding2.OAEP(
+            mgf=padding2.MGF1(algorithm=hashes.SHA1()),
+            algorithm=hashes.SHA1(),
+            label=None
+        )
+    )
+    return msg
+
+
 
 class Diffie_Hellman:
 
