@@ -57,7 +57,7 @@ class Client():
 	# login msg encrypted with server public key
 	login_msg = SRP_client.srp_client_login_msg()
 
-	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, login_msg).json )
+	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, self.public_keys, self.session_keys,'server', login_msg).encrypted_message )
 	
 	input_message,addr=self.sock.recvfrom(1024)
 	
@@ -84,15 +84,15 @@ class Client():
 
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
-	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
 	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
-	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LIST,self.username).json)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LIST,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
 	
-    def peer_chat(self,ip,port,chat_message):
+    def peer_chat(self,ip,port,chat_message,username):
 	#sends the desired message to the fellow chat peer
-	self.send_packet(ip,port,Message.Message(Message.MESSAGE,self.username,chat_message).json)
+	self.send_packet(ip,port,Message.Message(Message.MESSAGE,self.username,self.public_keys, self.session_keys,username,chat_message).encrypted_message)
 	
     def send_packet(self,ip,port,message):
 	#it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
@@ -100,7 +100,7 @@ class Client():
 
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
-	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,username).json)
+	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,self.public_keys, self.session_keys,'server',username).encrypted_message)
 			 
     def tcp_establish_key_listener(self,ip,port,username):
 		#create a tcp server
@@ -117,7 +117,7 @@ class Client():
 		self.shared_keys[username]=shared_key	 
 		conn.close() 
 		tcp_socket.close	 
-		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json) #self reports its own tcp_port to the user on the other end
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,self.public_keys, self.session_keys,username,tcp_port).encrypted_message) #self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 	
@@ -139,7 +139,7 @@ class Client():
 	while not self.key_present(username,"PUBLIC"):
 		pass
 	self.tcp_establish_key_listener(ip,port,username)
-	self.peer_chat(ip,port,msg)
+	self.peer_chat(ip,port,msg,username)
 			 
     def send_message(self):
 	#it is the controller fr the send_packet function
