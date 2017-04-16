@@ -54,7 +54,7 @@ class Message():
             {'type': self.type,'username': self.username, 'msg': self.msg, 'time': self.time})
         self.encrypted_message=self.encrypt_msg(self.json,_type,to)
         
-    def encrypt_msg(message,type,to):
+    def encrypt_msg(self,message,type,to):
         if _type!=ESTAB_KEY:
             ctr=os.urandom(BLOCK_SIZE)        
             return json.dumps({'encrypted_message': CF.aes_ctr(message,client.get_key_for_encryption("session",to),ctr),'ctr': ctr})
