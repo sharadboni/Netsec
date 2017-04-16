@@ -79,7 +79,7 @@ def UnMessage(data,user):
     json_data = json.loads(data)
     if 'ctr' in data:                          
         key=client.get_key_for_encryption("session",user)                          
-        json_data=CF.aes_ctr_decrypt(data['encrypted_message'], key, data['ctr']
+        json_data=CF.aes_ctr_decrypt(data['encrypted_message'], key, data['ctr'])
     else:
         key=client.get_key_for_encryption("public",user)  
         json_data=CF.rsa_dec_der2(data['encrypted_message'],key) # write function for it in CF
