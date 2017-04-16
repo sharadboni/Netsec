@@ -1,5 +1,4 @@
-#Assign list to the internal dictionary in receive message
-#ESTAB KEY in receive func
+#tcp diffie hellman not in message unmessage format.
 import sys
 import socket
 import Message
@@ -56,18 +55,15 @@ class Client():
 	# receive reply from server.
 	# TODO
 	B, salt = get_reply()
-		
 	try:
 		Key = SRP_client.srp_create_session_key(B, salt)
 
 		if Key:
 			self.session_keys['server'] = Key
 		else:
-		
 			print "!! Login Unsuccessfull"
 			exit(1)
 	except Exception as e:
-
 		print "!! Login Unsuccessfull"
 	
 
@@ -90,27 +86,61 @@ class Client():
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
 	self.send_packet(ip,port,Message.Message(GET_PUB_KEY,self.username,username).json)
+			 
+    def tcp_establish_key_listener(self,ip,port,username):
+		#create a tcp server
+		tcp_socket = socket.socket()         # Create a socket object
+		host = socket.gethostname() # Get local machine name
+		port = 12345                # Reserve a port for your service.
+		tcp_socket.bind((host, port))        # Bind to the port
+		tcp_socket.listen(1)
+		p=generate_prime(n=1024)
+		df=CF.Diffie_Hellman(p,2)	 
+		conn, addr = tcp_socket.accept()     # Establish connection with client.
+   		conn.send((df.get_public_key(),p))
+		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
+		self.shared_keys[username]=shared_key	 
+		conn.close() 
+		tcp_socket.close	 
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,tcp_port).json) #self reports its own tcp_port to the user on the other end
+		#wait for connection to establish and key establishment to be done
+		#close the tcp connection 	 
 	
-    def establish_key(self,username):
+    def tcp_establish_key_sender(self,ip,port,username):
+		#opens a tcp port	
+		tcp_socket.connect((host, port))
+		(public_key,p)=tcp_socket.recv(1024)
+		df=CF.Diffie_Hellman(p,2)
+		tcp_socket.send(df.get_public_key())
+		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
+		self.shared_keys[username]=shared_key	 
+		tcp_socket.close 	 
+		#sends a connection response to the listener	
+		#closes the connection	 
+			 
+    def establish_key(self,username,ip,port,msg):
 	#establishes the key with the fellow chat user
 	self.get_pub_key_from_server(username)
 	while not self.key_present(username,"PUBLIC"):
 		pass
-	self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,username).json)
-	
+	self.tcp_establish_key_listener(ip,port,username)
+	self.peer_chat(ip,port,msg)
+			 
     def send_message(self):
 	#it is the controller fr the send_packet function
 	while True:
 		user_input=raw_input(self.username+" > ").split(' ')
 		if user_input[0].lower()=="list":
 			self.list_users()
-		elif user_input[0].lower()=="send":# have to see how to relate the usernames with the ip and port
+		elif user_input[0].lower()=="send":
 			ip,port=self.resolve_username(user_input[1])
 			if not self.key_present(user_input[1],"SESSION"):
-				self.establish_key(user_input[1])
-			while not self.key_present(user_input[1],"SESSION"):
-				pass
-			self.peer_chat(ip,port,user_input[2])
+        			try:
+	    				threading.Thread(target=self.establish_key,args=(user_input[1],ip,port,user_input[2])).start()
+        			except Exception as e:
+            				print 'Error while creating threads :', e		 
+			else: 
+				self.peer_chat(ip,port,user_input[2])
 		elif user_input[0].lower()=="exit":
 			self.logout()
 			exit(0)	
@@ -121,21 +151,7 @@ class Client():
 	#maps the username to the ip address and port to whom the message is being sent
 	ip,port=self.online_users[user]
 	return ip,port
-
-    def receive_message(self):
-	#it will receive all kinds of messages and will display the results to the user 
-	while True:
-		input_message,addr=self.recvfrom(1024)
-		input_message=UnMessage(input_message)
-		if input_message.get_type==LIST:
-			#Assign it to the dictionary
-		elif input_message.get_type==MESSAGE:
-			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
-		elif input_message.get_type==ESTAB_KEY:
-			#to do
-		else:
-			"Message received in an unknown format"
-			
+			 
     def key_present(username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
@@ -144,7 +160,27 @@ class Client():
 	
 	if username in self.session_keys:
 		return True
-	return False	
+	return False
+			 
+    def receive_message(self):
+	#it will receive all kinds of messages and will display the results to the user 
+	while True:
+		input_message,addr=self.sock.recvfrom(1024)
+		input_message=UnMessage(input_message)
+		if input_message.get_type()==LIST:
+			self.online_users=input_message.get_message()
+		elif input_message.get_type()==MESSAGE:
+			print "<"+input_message.get_name()+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
+		elif input_message.get_type()==ESTAB_KEY:
+        		try:
+	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()
+        		except Exception as e:
+            			print 'Error while creating threads :', e
+		elif input_message.get_type()==PUB_KEY:
+			 self.public_keys[input_message.get_username()]=input_message.get_message()
+		else:
+			"Message received in an unknown format"	
+			 
     def create_threads(self):
 	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
         try:
