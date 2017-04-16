@@ -44,7 +44,7 @@ class Msg_Worker(multiprocessing.Process):
 
 class Message():
 
-    def __init__(self, _type, username, to=None, msg=None):
+    def __init__(self, _type, username, public_keys, session_keys, to=None, msg=None):
 
         self.type = _type
         self.msg = msg
@@ -52,14 +52,14 @@ class Message():
         self.username=username
         self.json = json.dumps(
             {'type': self.type,'username': self.username, 'msg': self.msg, 'time': self.time})
-        self.encrypted_message=self.encrypt_msg(self.json,_type,to)
-        
-    def encrypt_msg(self,message,type,to):
+        self.encrypted_message=self.encrypt_msg(self.json,_type,to,public_keys, session_keys)
+    
+    def encrypt_msg(self,message,type,to,public_keys, session_keys):
         if type!=ESTAB_KEY:
             ctr=os.urandom(BLOCK_SIZE)        
-            return json.dumps({'encrypted_message': CF.aes_ctr(message,client.get_key_for_encryption("session",to),ctr),'ctr': ctr})
+            return json.dumps({'encrypted_message': CF.aes_ctr(message,session_keys[to],ctr),'ctr': ctr})
         else:
-            return json.dumps({'encrypted_message':CF.rsa_enc_der2(message,client.get_key_for_encryption("public",to))})  
+            return json.dumps({'encrypted_message':CF.rsa_enc_der2(message,public_keys[to])})  
             
             
     def get_message(self):
@@ -74,14 +74,14 @@ class Message():
     def get_username(self):
         return self.username
 
-def UnMessage(data,user):
+def UnMessage(data,user,public_keys, session_keys):
                              
     json_data = json.loads(data)
     if 'ctr' in data:                          
-        key=client.get_key_for_encryption("session",user)                          
+        key=session_keys[user]                          
         json_data=CF.aes_ctr_decrypt(data['encrypted_message'], key, data['ctr'])
     else:
-        key=client.get_key_for_encryption("public",user)  
+        key=public_keys[user]
         json_data=CF.rsa_dec_der2(data['encrypted_message'],key) # write function for it in CF
     msg=Message.Message(json_data['type'],json_data['username'],msg=json_data['msg'])
     msg.time=json_data['time']
