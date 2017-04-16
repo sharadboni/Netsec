@@ -75,6 +75,10 @@ class Client():
 	#except Exception as e:
 	#	print "!! Login Unsuccessfull"
 	
+    def get_key_for_encryption(self,type,name):
+	if type=="public":
+		return public_keys[name]
+	return session_keys[name]
 
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
