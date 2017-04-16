@@ -25,11 +25,11 @@ class Msg_Worker(multiprocessing.Process):
 
             try:
                 # msg and source ip-port
-                cipher, addr = self.sock.recvfrom(4096)
+                msg, addr = self.sock.recvfrom(4096)
 
                 # TODO decrypt msg
 
-                self.queue.put(cipher)
+                self.queue.put((msg, addr))
 
             except Exception as e:
                 print 'Error while receiving a message', e
@@ -40,6 +40,7 @@ class Server():
     # init with the port number provided
     def __init__(self, port):
 
+        self.username = 'server_' + str(port)
         # public, private key paths
         self.sk = None
         self.pk = None
@@ -76,37 +77,42 @@ class Server():
 
     def msg_handler(self):
 
-        plain = self.msg_queue.get()
-
+        plain, addr = self.msg_queue.get()
 
         #plain = CF.rsa_dec_der(msg, "/Users/ahmet/Documents/6.2/net_sec/final_project/Netsec/data/keys/server_keys/key.pem")
 
-
         msg = json.loads(plain)  # Message.UnMessage(plain)
-        print msg
+
 
         if msg['type'] == Message.LOGIN:
-            self.user_SRP_login(msg['msg'])
+            self.user_SRP_login(msg['msg'], addr)
         # TODO, call thread for msg types
 
         # ...
 
     # SRP
-    def user_SRP_login(self, login_msg):
+    def user_SRP_login(self, login_msg, addr):
 
         # TODO
         # get user login msg = {'username': self.username, 'A': self.A, 'N': self.N}
 
         SRP_server = CF.SRP_server()
-        print login_msg
-        login_msg = json.loads(login_msg)
-        key = SRP_server.srp_server_accept_login(login_msg['username'], login_msg['A'], login_msg['N'])
 
-        print "session key :", key
+        login_msg = json.loads(login_msg)
+        srp_reply, v = SRP_server.srp_server_accept_login(login_msg['username'], login_msg['A'], login_msg['N'])
+
+        key = SRP_server.srp_server_sessio_key(login_msg['A'], login_msg['N'], v)
+
+        self.send_packet(addr[0], int(addr[1]), Message.Message(Message.SRP_REPLY, self.username, srp_reply).json)
+
         # TODO
         # verify proof of session key
 
-        self.session_keys[login_msg['username']] = key
+        # self.session_keys[login_msg['username']] = key
+
+    def send_packet(self, ip, port, message):
+      #it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
+        self.sock.sendto(message, (ip, port))
 
     # user requested list of users
     def user_list_request(self, user):

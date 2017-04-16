@@ -206,7 +206,7 @@ def isPrime(p):
 
 
 def cryptrand(Num, n=1024):
-    return random.SystemRandom().getrandbits(n) % Num
+    return random.SystemRandom().getrandbits(n) % primes[Num]
 
 
 # SRP implementation
@@ -215,45 +215,47 @@ class SRP_server():
     def __init__(self):
 
         self.g = 2
+        self.b = ''
+        self.B = ''
         # self.N = N
-
-        
 
     def srp_server_accept_login(self, username, client_A, client_N):
 
         # 2
-        # TODO
-        # get salt and pass verifier for username from db
 
         conn = sqlite3.connect(
-            '/Users/ahmet/Documents/6.2/net_sec/final_project/Netsec/data/DBs/users.db')
+            '../data/DBs/users.db')
         c = conn.cursor()
 
         c.execute('SELECT * FROM users WHERE username=(?)', (username,))
         res = c.fetchone()
-        print res
+        
         u, v, s, N = res
 
         # v = 'verification'
         salt = s  # self.get_salt_username(username)
 
-        b = cryptrand(Num=client_N, n=64)
+        self.b = cryptrand(Num=client_N)
 
-        N_g = str(client_N) + str(self.g)
+        N_g = str(primes[client_N]) + str(self.g)
 
         k = hash_sha256(N_g)
 
-        B = (int(k.encode('hex'), 16) * v + pow(self.g, b, client_N)) % client_N
+        self.B = (int(k.encode('hex'), 16) * int(v) + pow(self.g, self.b, primes[client_N])) % primes[client_N]
 
-        return B, salt
+        reply = {'B': self.B, 'salt': salt}
+
+        return reply, v
         # send B, salt
 
-    def srp_server_sessio_key(self, client_A , B, v):
+    def srp_server_sessio_key(self, client_A, client_N, v):
     # 3
-        u = hash_sha256(client_A + B)
+
+        A_B = str(client_A) + str(self.B)
+        u = hash_sha256(A_B)
 
     # 5
-        session_key = hash_sha256(pow(client_A * pow(v, u, self.N), b, self.N))
+        session_key = hash_sha256(str(pow(client_A * pow(int(v), int(u.encode('hex'), 16), primes[client_N]), self.b, primes[client_N])))
 
         return session_key
 
@@ -269,7 +271,10 @@ class SRP_client():
 
         self.g = 2
         self.N = random.randint(1, 5)
-        self.A = ''
+
+        # secret a, public A
+        self.a = cryptrand(Num=self.N)
+        self.A = pow(self.g, self.a, primes[self.N])
 
         self.username = username
         self.password = password
@@ -279,37 +284,28 @@ class SRP_client():
     def srp_client_pass_verf(self):
 
         # password verifier generation
-        safe_prime = primes[self.N]
-        salt = cryptrand(Num=safe_prime, n=64)
+
+        salt = cryptrand(Num=primes[self.N], n=64)
 
         # x, private
         pass_code = str(salt) + self.username + ':' + self.password
         x = hash_sha256(pass_code)
 
         # pass verifier
-        v = pow(self.g, int(x.encode('hex'), 16), safe_prime)
+        v = pow(self.g, int(x.encode('hex'), 16), primes[self.N])
 
         # DB ENTRY   <username,password verifier(v), salt, salt_creation_date>
         return self.username, v, salt, self.N
 
     def srp_client_login_msg(self):
 
-        # get username(I), password
-
-        # self.username = raw_input('Enter Username: ')
-        # self.password = getpass.getpass('Enter password: ')
-
         # 1
         msg = ''
         try:
-            safe_prime = primes[self.N]
-            a = cryptrand(Num=safe_prime)
-            self.A = pow(self.g, a, safe_prime)
 
             msg = {'username': self.username, 'A': self.A, 'N': self.N}
 
         except Exception as e:
-
             print e
             exit(1)
 
@@ -318,18 +314,24 @@ class SRP_client():
     def srp_create_session_key(self, B, salt):
 
         server_B = B
-
     # 3 Random scrambling parameter
+        A_B = str(self.A) + str(server_B)
 
-        u = hash_sha256(self.A + server_B)
-
+        u = hash_sha256(A_B)
     # 4
 
-        pass_code = salt + self.username + ':' + self.password
+        pass_code = str(salt) + self.username + ':' + self.password
+        
         x = hash_sha256(pass_code)
 
-        self.session_key = hash_sha256(
-            pow(server_B - self.k * pow(self.g, x, self.N), a + u * x, self.N))
 
+        N_g = str(primes[self.N]) + str(self.g)
+
+        k = hash_sha256(N_g)
+
+        self.session_key = hash_sha256(
+            str(pow(server_B - int(k.encode('hex'), 16) * pow(self.g, int(x.encode('hex'), 16), primes[self.N]), self.a + int(u.encode('hex'), 16) * int(x.encode('hex'), 16), primes[self.N])))
+
+        return self.session_key
     # TODO
     # send proof of session key

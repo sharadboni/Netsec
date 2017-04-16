@@ -9,6 +9,7 @@ import multiprocessing
 
 # message types
 LOGIN = 'LOGIN'
+SRP_REPLY = 'SRP_REPLY'
 LIST = 'LIST'
 MESSAGE = 'MESSAGE'
 LOGOUT = 'LOGOUT'

@@ -42,38 +42,45 @@ class Client():
             exit(1)
 
     def login(self):
+
 	#gets the username and password and sends it to the server to get verified
 	self.username=raw_input(">Username: ")
 	password=getpass.getpass(">Password: ")
 	#encrypt with servers public key which will have its details in the configuration file
-	
+
+	print "logging in ..."	
 	# SRP authentication
 	
-	#safe prime
 	# SRP client
 	SRP_client = CF.SRP_client(self.username, password, self)	
 	# login msg encrypted with server public key
 	login_msg = SRP_client.srp_client_login_msg()
 
+	print "sending srp login msg with username, A , N"
+	print Message.Message(Message.LOGIN,self.username, login_msg).json
 	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, login_msg).json )
 	
-	input_message,addr=self.sock.recvfrom(1024)
+	print 'Waiting for srp login reply...'
+	srp_reply, addr=self.sock.recvfrom(1024)
+	srp_reply = json.loads(srp_reply)	
+	print 'SRP login reply with B and salt:', srp_reply
+
+	B = srp_reply['msg']['B']
+	salt = srp_reply['msg']['salt']
 	
-	print input_message
-
-	# receive reply from server.
-	# TODO
-	#B, salt = 0,0 #get_reply()
-	#try:
-	#	Key = SRP_client.srp_create_session_key(B, salt)
-
-	#	if Key:
-	#		self.session_keys['server'] = Key
-	#	else:
-	#		print "!! Login Unsuccessfull"
-	#		exit(1)
-	#except Exception as e:
-	#	print "!! Login Unsuccessfull"
+	try:
+		print "generating key..."
+		Key = SRP_client.srp_create_session_key(B, salt)
+	
+		if Key:
+			self.session_keys['server'] = Key
+			print "key : ", Key
+		else:
+			print "!! Login Unsuccessfull"
+			exit(1)
+	except Exception as e:
+		print e
+		print "!! Login Unsuccessfull"
 	
     def get_key_for_encryption(self,type,name):
 	if type=="public":
