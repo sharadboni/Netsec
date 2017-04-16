@@ -179,7 +179,7 @@ class Client():
 	#it will receive all kinds of messages and will display the results to the user 
 	while True:
 		input_message,addr=self.sock.recvfrom(1024)
-		input_message=UnMessage(input_message)
+		input_message=Message.UnMessage(input_message)
 		if input_message.get_type()==LIST:
 			self.online_users=input_message.get_message()
 		elif input_message.get_type()==MESSAGE:
