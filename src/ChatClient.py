@@ -184,6 +184,12 @@ class Client():
 	for i in self.online_users.keys():
 		temp_ip_port_users[self.online_users[i]]=i
 	self.ip_port_users=temp_ip_port_users
+
+    def delete_user(self,user):
+	for i in user.keys():
+		del self.online_users[i]
+	for j in user.values():
+		del self.ip_port_users[i]		
 	
     def key_present(username,_key):
 	if _key=="PUBLIC":
@@ -202,8 +208,9 @@ class Client():
 		user=self.resolve_ip_port(addr)
 		input_message=Message.UnMessage(input_message,user)
 		if input_message.get_type()==LIST:
-			self.online_users=input_message.get_message()
-			threading.Thread(target=self.user_to_ips).start()
+			user_to_delete=input_message.get_message()
+			self.delete_user(user_to_delete)
+			#threading.Thread(target=self.user_to_ips).start() have to call this in srp
 		elif input_message.get_type()==MESSAGE:
 			print "<"+user+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
 		elif input_message.get_type()==ESTAB_KEY:
