@@ -247,9 +247,10 @@ class SRP_server():
 
         c.execute('SELECT * FROM users WHERE username=(?)', (username,))
         res = c.fetchone()
-        
-        u, v, s, N = res
 
+        u, v, s, N = res
+        c.close()
+        conn.close()
         # v = 'verification'
         salt = s  # self.get_salt_username(username)
 
@@ -283,12 +284,18 @@ class SRP_server():
 
 class SRP_client():
 
-    def __init__(self, username, password, client):
-
-        self.client = client
+    def __init__(self, username, password):
 
         self.g = 2
-        self.N = random.randint(1, 5)
+
+        conn = sqlite3.connect(
+            '../data/DBs/users.db')
+        c = conn.cursor()
+
+        c.execute('SELECT N FROM users WHERE username=(?)', (username,))
+        res = c.fetchone()
+
+        self.N = res[0]
 
         # secret a, public A
         self.a = cryptrand(Num=self.N)
@@ -303,11 +310,11 @@ class SRP_client():
 
         # password verifier generation
 
-        salt = cryptrand(Num=primes[self.N], n=64)
+        salt = cryptrand(Num=self.N, n=64)
 
         # x, private
         pass_code = str(salt) + self.username + ':' + self.password
-        x = hash_sha256(pass_code)
+        x = hash_sha256(bytes(pass_code))
 
         # pass verifier
         v = pow(self.g, int(x.encode('hex'), 16), primes[self.N])
@@ -340,7 +347,7 @@ class SRP_client():
 
         pass_code = str(salt) + self.username + ':' + self.password
         
-        x = hash_sha256(pass_code)
+        x = hash_sha256(bytes(pass_code))
 
 
         N_g = str(primes[self.N]) + str(self.g)

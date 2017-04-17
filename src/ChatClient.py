@@ -62,11 +62,11 @@ class Client():
 	# SRP authentication
 	
 	# SRP client
-	self.SRP_client = CF.SRP_client(self.username, password, self)	
+	self.SRP_client = CF.SRP_client(self.username, password)	
 	# login msg encrypted with server public key
 	login_msg = self.SRP_client.srp_client_login_msg()
 
-	print "sending srp login msg with username, A , N", login_msg
+	print "sending srp login msg with username, A , N" # , login_msg
 	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, msg=login_msg).json )
 	#self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, self.public_keys, self.session_keys,'server', login_msg).encrypted_message )
 	
@@ -87,17 +87,23 @@ class Client():
     
         		server_session_key, A, B = self.create_srp_key(srp_reply)
     
-   	             if server_session_key == "SRP_KEY_ERROR":
-        	     	print "Login Error!!!"
-                        return False
+   	             	if server_session_key == "SRP_KEY_ERROR":
+        	     		print "Login Error!!!"
+                        	return False
 
                 s = str(A) + str(B)+str(server_session_key)
-                h = CF.hash_sha256(s)
-    
-                self.send_packet( self.server_ip , self.server_port, Message.Message(Message.SRP_VERIFICATION_1,self.username, msg=str(h)).json) 
+                m_1 = unicode(CF.hash_sha256(s),errors='replace')
+               	print "string:", s 
+		print 'Sending Message.SRP_VERIFICATION_1'	
+		self.send_packet( self.server_ip , self.server_port, Message.Message(Message.SRP_VERIFICATION_1,self.username, msg=m_1).json) 
                 
-		self.loggedin = True
-
+		print 'Waiting for Message.SRP_VERIFICATION_2'
+		srp_verify, addr=self.sock.recvfrom(1024)
+		m_2 = unicode(CF.hash_sha256(str(json.loads(login_msg)['A']) + str(CF.hash_sha256(m_1.encode('ascii', 'ignore'))) + str(server_session_key)), errors='replace')
+		if m_2 == json.loads(srp_verify)['msg']:
+			self.loggedin = True
+		else:
+			return False
 
 		
 	return True
@@ -133,7 +139,7 @@ class Client():
 
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
-	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LOGOUT,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
 	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
@@ -263,18 +269,8 @@ class Client():
 		elif input_message.get_type() == Message.PUB_KEY:
 			 self.public_keys[input_message.get_username()]=input_message.get_message()
 
-		elif input_message.get_type() == Message.SRP_REPLY:
-			
-			server_session_key, A, B = create_srp_key(input_message)
-			
-			if server_session_key == "SRP_KEY_ERROR":
-				print "Login Error!!!"
-				return
-
-			s = str(A) + str(B)+str(server_session_key)
-			h = CF.hash_sha256(s)
-			
-			self.send_packet( self.server_ip , self.server_port, Message.Message(Message.SRP_VERIFICATION_1,self.username,[] , [],to=None, msg=login_msg).json) 
+		elif input_message.get_type() == Message.UPDATE:
+			self.online_users = json.loads(input_message['msg'])
 		else:
 			print "Message received in an unknown format"	
 			 

@@ -46,7 +46,7 @@ def user_db():
 
             passwd = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
 
-            u = CF.SRP_client(i, passwd, None)
+            u = CF.SRP_client(i, passwd)
 
             username, v, salt, N = u.srp_client_pass_verf()
 
@@ -93,5 +93,5 @@ def user_keys():
         #     f.write(pem_s)
 
 
-# user_db()
-user_keys()
+user_db()
+# user_keys()
