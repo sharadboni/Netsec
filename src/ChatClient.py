@@ -152,15 +152,15 @@ class Client():
 		port = 12345                # Reserve a port for your service.
 		tcp_socket.bind((host, port))        # Bind to the port
 		tcp_socket.listen(1)
-		p=generate_prime(n=1024)
-		df=CF.Diffie_Hellman(p,2)	 
+		p=CF.generate_prime(n=1024)
+		df=CF.Diffie_Hellman(p,2)
+		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,self.public_keys, self.session_keys,username,tcp_port).encrypted_message) #self reports its own tcp_port to the user on the other end
 		conn, addr = tcp_socket.accept()     # Establish connection with client.
    		conn.send((df.get_public_key(),p))
 		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
 		self.shared_keys[username]=shared_key	 
 		conn.close() 
 		tcp_socket.close	 
-		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,self.public_keys, self.session_keys,username,tcp_port).encrypted_message) #self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
 		
