@@ -7,6 +7,7 @@ import threading
 import getpass
 import json
 import Crypt_Functions as CF
+import time
 
 PRIME_SIZE = 1024
 g = 2
@@ -31,6 +32,8 @@ class Client():
 		
 	self.server_port = int(kf['server_port'])
 	self.server_ip = kf["server_ip"]
+
+	print int(kf['server_port']), kf["server_ip"] 
 	self.username=None
 	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
 	self.ip_port_users={} #reverse mapping of (ip,port) to users
@@ -43,6 +46,9 @@ class Client():
 	    print 'Error with public/private key :', e
             exit(1)
 
+	self.SRP_client = None
+	self.loggedin = False
+
     def login(self):
 
 	#gets the username and password and sends it to the server to get verified
@@ -54,16 +60,25 @@ class Client():
 	# SRP authentication
 	
 	# SRP client
-	SRP_client = CF.SRP_client(self.username, password, self)	
+	self.SRP_client = CF.SRP_client(self.username, password, self)	
 	# login msg encrypted with server public key
-	login_msg = SRP_client.srp_client_login_msg()
+	login_msg = self.SRP_client.srp_client_login_msg()
 
-	print "sending srp login msg with username, A , N"
-	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username,[] , [],to=None, msg=login_msg).json )
+	print "sending srp login msg with username, A , N", login_msg
+	self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, msg=login_msg).json )
 	#self.send_packet( self.server_ip , self.server_port, Message.Message(Message.LOGIN,self.username, self.public_keys, self.session_keys,'server', login_msg).encrypted_message )
 	
 	print 'Waiting for srp login reply...'
-	srp_reply, addr=self.sock.recvfrom(1024)
+
+	t = time.time()
+
+	while not self.loggedin:
+		if time.time() - t > 15:
+			return False
+	return True
+    def create_srp_key(self, srp_reply):
+
+#	srp_reply, addr=self.sock.recvfrom(1024)
 	srp_reply = json.loads(srp_reply)	
 	print 'SRP login reply with B and salt:', srp_reply
 
@@ -79,10 +94,12 @@ class Client():
 			print "key : ", Key
 		else:
 			print "!! Login Unsuccessfull"
-			exit(1)
+			return "SRP_KEY_ERROR"
 	except Exception as e:
 		print e
 		print "!! Login Unsuccessfull"
+		return "SRP_KEY_ERROR"
+	return Key, self.SRP_client.A, B 
 	
     def get_key_for_encryption(self,type,name):
 	if type=="public":
@@ -207,21 +224,34 @@ class Client():
 		input_message,addr=self.sock.recvfrom(1024)
 		user=self.resolve_ip_port(addr)
 		input_message=Message.UnMessage(input_message,user)
-		if input_message.get_type()==LIST:
+		if input_message.get_type() == Message.LIST:
 			user_to_delete=input_message.get_message()
 			self.delete_user(user_to_delete)
 			#threading.Thread(target=self.user_to_ips).start() have to call this in srp
-		elif input_message.get_type()==MESSAGE:
+		elif input_message.get_type() == Message.MESSAGE:
 			print "<"+user+" sent a message at "+input_message.get_time()+"> "+input_message.get_message()
-		elif input_message.get_type()==ESTAB_KEY:
+		elif input_message.get_type() == Message.ESTAB_KEY:
         		try:
 	    			threading.Thread(target=self.tcp_establish_key_sender,args=(addr[0],input_message.get_message(),input_message.get_username())).start()
         		except Exception as e:
             			print 'Error while creating threads :', e
-		elif input_message.get_type()==PUB_KEY:
+		elif input_message.get_type() == Message.PUB_KEY:
 			 self.public_keys[input_message.get_username()]=input_message.get_message()
+
+		elif input_message.get_type() == Message.SRP_REPLY:
+			
+			server_session_key, A, B = create_srp_key(input_message)
+			
+			if server_session_key == "SRP_KEY_ERROR":
+				print "Login Error!!!"
+				return
+
+			s = str(A) + str(B)+str(server_session_key)
+			h = CF.hash_sha256(s)
+			
+			self.send_packet( self.server_ip , self.server_port, Message.Message(Message.SRP_VERIFICATION_1,self.username,[] , [],to=None, msg=login_msg).json) 
 		else:
-			"Message received in an unknown format"	
+			print "Message received in an unknown format"	
 			 
     def create_threads(self):
 	#this function creates the send_message and receive message threads so that chats can happen simultaneously. 
@@ -236,7 +266,8 @@ class Client():
 #start of the main parent execution function for the client chat file
 def main():
 	client=Client()
-	client.login()
-	#client.create_threads()		
-		
+	if client.login():
+		client.create_threads()		
+	else:
+		print "Login not successfull"
 main()

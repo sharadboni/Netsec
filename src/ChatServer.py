@@ -22,6 +22,7 @@ class Verification_Worker(multiprocessing.Process):
 
     def __init__(self, server):
 
+        multiprocessing.Process.__init__(self)
         self.server = server
 
     def run(self):
@@ -32,6 +33,7 @@ class Verification_Worker(multiprocessing.Process):
 
                 task = self.server.verification_queue.get()
 
+                print "TASK:", task
                 if task['msg'] == self.server.waiting_verification[task['username']][1]:
                     self.server.waiting_verification[task['username']][0] = True
 
@@ -62,7 +64,7 @@ class Server():
         self.verification_queue = multiprocessing.Queue()
 
         # worker waits for msg and puts in to queue for further process
-        self.msg_worker = Message.Msg_Worker(self, self.sock, self.msg_queue)
+        self.msg_worker = Message.Msg_Worker(self.sock, self.msg_queue)
         print "Worker started"
         self.msg_worker.start()
 
@@ -83,6 +85,9 @@ class Server():
 
     def msg_handler(self):
 
+        if self.msg_queue.empty():
+            return
+        
         plain, addr = self.msg_queue.get()
 
         # plain = CF.rsa_dec_der(msg, "/Users/ahmet/Documents/6.2/net_sec/final_project/Netsec/data/keys/server_keys/key.pem")
@@ -90,8 +95,8 @@ class Server():
         msg = json.loads(plain)  # Message.UnMessage(plain)
 
         if msg['type'] == Message.LOGIN:
-            # self.user_SRP_login(msg['msg'], addr)
-            print msg
+            self.user_SRP_login(msg['msg'], addr)
+            # print msg
 
         # no need fir list
         # elif msg['type'] == Message.LIST:
@@ -117,7 +122,7 @@ class Server():
         login_msg = json.loads(login_msg)
 
         # check username
-        if login_msg['username'] == '' or login_msg['username']:
+        if login_msg['username'] == '' or not login_msg['username']:
 
             self.send_error(WRONG_USERNAME_PASSWORD)
             return
@@ -134,11 +139,12 @@ class Server():
 
         srp_reply, v = SRP_server.srp_server_accept_login(login_msg['username'], login_msg['A'], login_msg['N'])
 
+        print 'Gnerating key ...'
         key = SRP_server.srp_server_sessio_key(login_msg['A'], login_msg['N'], v)
         self.srp_sessionkeys[login_msg['username']] = key
 
         # verify key
-        
+        print "sending SRP_REPLY"
         self.send_packet(addr[0], int(addr[1]), Message.Message(Message.SRP_REPLY, self.username, srp_reply).json)
 
         #  verification
@@ -147,13 +153,15 @@ class Server():
         h = CF.hash_sha256(str(login_msg['A']) + str(CF.hash_sha256(m_1)) + str(key))
         self.waiting_verification[login_msg['username']] = (False, h)
 
+        print "Waiting for verification..."
         t = time.time()
-        while self.waiting_verification[login_msg['username']] == 0:
+        while self.waiting_verification[login_msg['username']][0] is False:
 
-            if t - time.time() > 15:
+            if time.time() - t > 15:
+
                 self.send_error(VERIFICATION_TIME_OUT)
                 return
-
+        print "passed verification ."
         # verification pass
 
         self.online_users[login_msg['username']] = addr
@@ -178,7 +186,7 @@ class Server():
         pub_b = self.get_pub_key_of_user(user_B)
 
         if not pub_b:
-            send_error(KEY_ERROR)
+            self.send_error(KEY_ERROR)
             return
 
         resp = {'username': user_B, 'pub_key': pub_b}
@@ -207,8 +215,12 @@ class Server():
         else:
             return pub
 
+    def send_error(self, msg):
+        print msg
+
 
 if __name__ == '__main__':
     server = Server(9090)
-    # server.msg_handler()
+    while True:
+        server.msg_handler()
 

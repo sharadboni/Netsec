@@ -33,6 +33,8 @@ class Msg_Worker(multiprocessing.Process):
 
     def __init__(self, sock, queue):
 
+        multiprocessing.Process.__init__(self)
+
         self.sock = sock
         # multiprocessing queue to store active user info
         self.queue = queue
@@ -52,7 +54,7 @@ class Msg_Worker(multiprocessing.Process):
 
 class Message():
 
-    def __init__(self, _type, username, public_keys, session_keys, to=None, msg=None):
+    def __init__(self, _type, username, msg=None):
 
         self.type = _type
         self.msg = msg
