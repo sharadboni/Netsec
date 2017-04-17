@@ -15,25 +15,25 @@ KEY_ERROR = "KEY NOT FOUND!"
 USER_ALREADY_LOGGED_IN = "USER_ALREADY_LOGGED_IN"
 WRONG_USERNAME_PASSWORD = "WRONG_USERNAME_PASSWORD_PAIR"
 LOGIN_SUCCESSFUL = "Login successful "
-VALIDATION_TIME_OUT = "VALIDATION_TIME_OUT"
+VERIFICATION_TIME_OUT = "VERIFICATION_TIME_OUT"
+USER_NOT_ONLINE_NOTEXIST = "User is not online or does not exist"
 
-
-class Validation_Worker(multiprocessing.Process):
+class Verification_Worker(multiprocessing.Process):
 
     def __init__(self, server):
 
         self.server = server
 
     def run(self):
-        print 'Validation worker started running'
+        print 'Verification worker started running'
 
         while True:
-            if not self.server.validation_queue.empty():
+            if not self.server.verification_queue.empty():
 
-                task = self.server.validation_queue.get()
+                task = self.server.verification_queue.get()
 
-
-
+                if task['msg'] == self.server.waiting_verification[task['username']][1]:
+                    self.server.waiting_verification[task['username']][0] = True
 
 
 
@@ -59,19 +59,22 @@ class Server():
             exit(1)
 
         self.msg_queue = multiprocessing.Queue()
-        self.validation_queue = multiprocessing.Queue()
+        self.verification_queue = multiprocessing.Queue()
 
         # worker waits for msg and puts in to queue for further process
         self.msg_worker = Message.Msg_Worker(self, self.sock, self.msg_queue)
-
         print "Worker started"
         self.msg_worker.start()
+
+        # workers validate srp keys
+        self.ver_worker = Verification_Worker(self)
+        self.ver_worker.start()
 
         # keeps username:session_key
         self.online_users = {}
 
-        # users waiting for validation
-        self.waiting_validation = {}
+        # users waiting for verification
+        self.waiting_verification = {}
 
         self.srp_sessionkeys = {}
 
@@ -99,8 +102,8 @@ class Server():
             # self.user_get_key_req(A,B)
             print msg
 
-        elif msg['type'] == Message.SRP_VALIDATION_1:
-            self.validation_queue.put(msg['msg'])
+        elif msg['type'] == Message.SRP_VERIFICATION_1:
+            self.verification_queue.put(msg)
 
         elif msg['type'] == Message.LOGOUT:
             print msg
@@ -132,52 +135,64 @@ class Server():
         srp_reply, v = SRP_server.srp_server_accept_login(login_msg['username'], login_msg['A'], login_msg['N'])
 
         key = SRP_server.srp_server_sessio_key(login_msg['A'], login_msg['N'], v)
-        self.srp_sessionkeys[login_msg['username']]
+        self.srp_sessionkeys[login_msg['username']] = key
 
         # verify key
         
         self.send_packet(addr[0], int(addr[1]), Message.Message(Message.SRP_REPLY, self.username, srp_reply).json)
 
+        #  verification
         m_1 = str(login_msg['A']) + str(srp_reply['B']) + str(key)
 
         h = CF.hash_sha256(str(login_msg['A']) + str(CF.hash_sha256(m_1)) + str(key))
-        self.waiting_validation[login_msg['username']] = (0, h)
+        self.waiting_verification[login_msg['username']] = (False, h)
 
         t = time.time()
-        while self.waiting_validation[login_msg['username']] == 0:
+        while self.waiting_verification[login_msg['username']] == 0:
 
             if t - time.time() > 15:
-                self.send_error(VALIDATION_TIME_OUT)
+                self.send_error(VERIFICATION_TIME_OUT)
                 return
 
-        # validation pass
+        # verification pass
 
         self.online_users[login_msg['username']] = addr
         # send update
         self.send_update()
-
-
-        # validation, addr = self.sock.recvfrom(1024)
-
-        # if validation['msg']['Nounce_reply'] != nounce:
-        #     self.send_error(WRONG_USERNAME_PASSWORD)
-        #     return
-
 
     def send_packet(self, ip, port, message):
       #it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
         self.sock.sendto(message, (ip, port))
 
     # user requested list of users
-    def user_list_request(self, user):
-        pass
+    # def user_list_request(self, user):
+    #     pass
 
     # A wants to talk with B
-    def user_get_key_req(self, A, B):
-        pass
+    def user_get_key_req(self, user_A, user_B):
+        
+        if user_B not in self.online_users.keys():
+            self.send_error(USER_NOT_ONLINE_NOTEXIST)
+            return
+
+        pub_b = self.get_pub_key_of_user(user_B)
+
+        if not pub_b:
+            send_error(KEY_ERROR)
+            return
+
+        resp = {'username': user_B, 'pub_key': pub_b}
+        addr = self.online_users[user_A]
+        self.send_packet(addr[0], int(addr[1]), Message.Message(Message.UPDATE_LIST, self.username, resp).json)
 
     def send_update(self):
-        pass
+        
+        print 'Sending update...'
+        user_list = self.online_users.keys()
+
+        for i in self.online_users.keys():
+            addr = self.online_users[i]
+            self.send_packet(addr[0], int(addr[1]), Message.Message(Message.UPDATE_LIST, self.username, user_list).json)
 
     # get user key
     def get_pub_key_of_user(self, username):
