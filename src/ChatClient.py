@@ -80,9 +80,9 @@ class Client():
     
         		server_session_key, A, B = self.create_srp_key(srp_reply)
     
-   	             if server_session_key == "SRP_KEY_ERROR":
-        	     	print "Login Error!!!"
-                        return False
+   	                if server_session_key == "SRP_KEY_ERROR":
+        	     		print "Login Error!!!"
+                        	return False
 
                 s = str(A) + str(B)+str(server_session_key)
                 h = CF.hash_sha256(s)
