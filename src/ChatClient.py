@@ -263,7 +263,7 @@ class Client():
         		except Exception as e:
             			print 'Error while creating threads :', e
 		elif input_message.get_type() == Message.PUB_KEY:
-			 self.public_keys[input_message.get_username()]=input_message.get_message()
+			 self.public_keys[input_message.get_username()['username']]=input_message.get_message()['pub_key']
 
 		elif input_message.get_type() == Message.SRP_REPLY:
 			
