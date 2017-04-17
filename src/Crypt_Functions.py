@@ -3,7 +3,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as padding2
 from cryptography.hazmat.primitives.asymmetric import dh
-
+import cryptography
 import json
 import random
 import sqlite3
@@ -130,7 +130,7 @@ class Diffie_Hellman:
         # dh.generate_parameters(
         #     generator=2, key_size=2048, backend=default_backend())
         self.private = self.parameters.generate_private_key()
-        self.public = self.private.public_key()
+        self.public = self.private.public_key().public_bytes(cryptography.hazmat.primitives.serialization.Encoding.PEM,cryptography.hazmat.primitives.serialization.PublicFormat.SubjectPublicKeyInfo)
 
     def get_private_key(self):
         """ Return the private key (a) """
