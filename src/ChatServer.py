@@ -125,14 +125,16 @@ class Server():
         if login_msg['username'] == '' or not login_msg['username']:
 
             self.send_error(WRONG_USERNAME_PASSWORD)
+            print '1'
             return
 
         if login_msg['username'] in self.online_users.keys():
             self.send_error(USER_ALREADY_LOGGED_IN)
             return
 
-        if login_msg['A'] % login_msg['N'] == 0:
+        if login_msg['A'] % CF.primes[login_msg['N']] == 0:
             self.send_error(WRONG_USERNAME_PASSWORD)
+            print '2'
             return
 
         SRP_server = CF.SRP_server()
@@ -151,7 +153,7 @@ class Server():
         m_1 = str(login_msg['A']) + str(srp_reply['B']) + str(key)
 
         h = CF.hash_sha256(str(login_msg['A']) + str(CF.hash_sha256(m_1)) + str(key))
-        self.waiting_verification[login_msg['username']] = (False, h)
+        self.waiting_verification[login_msg['username']] = (False, str(h))
 
         print "Waiting for verification..."
         t = time.time()

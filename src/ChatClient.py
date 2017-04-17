@@ -13,6 +13,8 @@ PRIME_SIZE = 1024
 g = 2
 
 
+
+
 class Client():
 
     def __init__(self):
@@ -70,16 +72,39 @@ class Client():
 	
 	print 'Waiting for srp login reply...'
 
+
 	t = time.time()
 
 	while not self.loggedin:
+		
 		if time.time() - t > 15:
 			return False
+		
+		srp_reply, addr=self.sock.recvfrom(1024)
+
+		srp_reply = json.loads(srp_reply)
+		if srp_reply['type'] == Message.SRP_REPLY:
+    
+        		server_session_key, A, B = self.create_srp_key(srp_reply)
+    
+   	             if server_session_key == "SRP_KEY_ERROR":
+        	     	print "Login Error!!!"
+                        return False
+
+                s = str(A) + str(B)+str(server_session_key)
+                h = CF.hash_sha256(s)
+    
+                self.send_packet( self.server_ip , self.server_port, Message.Message(Message.SRP_VERIFICATION_1,self.username, msg=str(h)).json) 
+                
+		self.loggedin = True
+
+
+		
 	return True
     def create_srp_key(self, srp_reply):
 
 #	srp_reply, addr=self.sock.recvfrom(1024)
-	srp_reply = json.loads(srp_reply)	
+	#srp_reply = json.loads(srp_reply)	
 	print 'SRP login reply with B and salt:', srp_reply
 
 	B = srp_reply['msg']['B']
@@ -87,7 +112,7 @@ class Client():
 	
 	try:
 		print "generating key..."
-		Key = SRP_client.srp_create_session_key(B, salt)
+		Key = self.SRP_client.srp_create_session_key(B, salt)
 	
 		if Key:
 			self.session_keys['server'] = Key
@@ -267,6 +292,7 @@ class Client():
 def main():
 	client=Client()
 	if client.login():
+		print 'Logged in'
 		client.create_threads()		
 	else:
 		print "Login not successfull"
