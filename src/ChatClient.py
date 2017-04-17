@@ -8,18 +8,15 @@ import Crypt_Functions as CF
 import time
 
 PRIME_SIZE = 1024
-g = 2
-
-
-
+g = 2 #diffie hellman parameter
 
 class Client():
 
     def __init__(self):
-
+	#formation of socket
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	    
+	#exception handling if the socket is not made correctly    
         except Exception as e:
             print 'Error while creating the socket :', e
             exit(1)	
@@ -28,17 +25,16 @@ class Client():
 	with open("../data/server.config","r") as f:
 
 		kf = json.load(f)
-
-		
+	
 	self.server_port = int(kf['server_port'])
 	self.server_ip = kf["server_ip"]
-
-	print int(kf['server_port']), kf["server_ip"] 
+	
+	#print int(kf['server_port']), kf["server_ip"] 
 	self.username=None
 	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
 	self.ip_port_users={} #reverse mapping of (ip,port) to users
 	self.session_keys={} #has public key of the users that the current user has communicated with
-	self.public_keys={} # stores the public keys of the teh chat users temporarily and deletes it once the session has been established
+	self.public_keys={} # stores the public keys of the the chat users temporarily and deletes it once the session has been established
 	try:
 	    self.server_public_key=kf["server_pubkey"] # server public key path
 	    #self.private_key= # no need 	
@@ -54,8 +50,7 @@ class Client():
 	#gets the username and password and sends it to the server to get verified
 	self.username=raw_input(">Username: ")
 	password=getpass.getpass(">Password: ")
-	#encrypt with servers public key which will have its details in the configuration file
-
+	
 	print "logging in ..."	
 	# SRP authentication
 	
@@ -132,7 +127,7 @@ class Client():
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
 	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.EXIT,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
-	
+    #redundant function list_users won't be used now updates will be broadcasted after a user logs out.	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
 	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LIST,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
@@ -148,7 +143,8 @@ class Client():
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
 	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,self.public_keys, self.session_keys,'server',username).encrypted_message)
-			 
+    
+    #tcp_establish_key_listener function helps in the establishment of the shared session key			 
     def tcp_establish_key_listener(self,ip,port,username):
 		#create a tcp server
 		tcp_socket = socket.socket()         # Create a socket object
@@ -167,7 +163,8 @@ class Client():
 		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,self.public_keys, self.session_keys,username,tcp_port).encrypted_message) #self reports its own tcp_port to the user on the other end
 		#wait for connection to establish and key establishment to be done
 		#close the tcp connection 	 
-	
+		
+    #tcp_establish_key_sender function helps in the establishment of the shared session key	
     def tcp_establish_key_sender(self,ip,port,username):
 		#opens a tcp port	
 		tcp_socket.connect((host, port))
@@ -220,11 +217,13 @@ class Client():
 	return username
 
     def user_to_ips(self):
+	#creates a reverse mapping list of online users	
 	temp_ip_port_users={}	
 	for i in self.online_users.keys():
 		temp_ip_port_users[self.online_users[i]]=i
 	self.ip_port_users=temp_ip_port_users
 
+    #below function deletes a user from the intenal lists like online_users,session_keys,public_keys,ip_port_users once receiving a broadcast from the server that the user has logged out
     def delete_user(self,user):
 	for i in user.keys():
 		del self.online_users[i]
@@ -233,7 +232,9 @@ class Client():
 		if i in self.public_keys:	
 			del self.public_keys[i]
 	for j in user.values():
-		del self.ip_port_users[i]		
+		del self.ip_port_users[i]	
+    
+    #finds if the session key or public key is present in the internal mappings 
     def key_present(username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
