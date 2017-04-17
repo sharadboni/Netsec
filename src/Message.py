@@ -7,17 +7,21 @@ import Crypt_Functions as CF
 import multiprocessing
 import os
 
+BLOCK_SIZE=16
 
 # message types
+# msg to server-client
 LOGIN = 'LOGIN'
 SRP_REPLY = 'SRP_REPLY'
+SRP_VALIDATION = 'SRP_VALIDATION'
 LIST = 'LIST'
-MESSAGE = 'MESSAGE'
 LOGOUT = 'LOGOUT'
-EXIT = 'EXIT'
-COMM_REQ = 'COMMUNICATION-REQUEST'
 PUB_KEY='PUB_KEY'
 GET_PUB_KEY='GET_KEY'
+UPDATE_LIST="UPDATE_LIST"
+
+# clint-client
+MESSAGE = 'MESSAGE'
 ESTAB_KEY='ESTAB_KEY'
 
 
@@ -40,7 +44,7 @@ class Msg_Worker(multiprocessing.Process):
 
                 self.queue.put((msg, addr))
             except Exception as e:
-                print i 
+                print 'Error while receiving a message', e
 
 
 class Message():
@@ -87,5 +91,14 @@ def UnMessage(data,user,public_keys, session_keys):
     msg=Message.Message(json_data['type'],json_data['username'],msg=json_data['msg'])
     msg.time=json_data['time']
     return msg                                     
-        
-                              
+
+
+def UnMessage_no_encryption(data):
+    
+    data = json.loads(data)
+    msg = Message(data['type'], data['username'])
+
+    msg.json = data
+    msg.time = data['time']
+
+    return msg
