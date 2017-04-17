@@ -9,8 +9,33 @@ import json
 import Message
 import Crypt_Functions as CF
 import multiprocessing
+import time
 
 KEY_ERROR = "KEY NOT FOUND!"
+USER_ALREADY_LOGGED_IN = "USER_ALREADY_LOGGED_IN"
+WRONG_USERNAME_PASSWORD = "WRONG_USERNAME_PASSWORD_PAIR"
+LOGIN_SUCCESSFUL = "Login successful "
+VALIDATION_TIME_OUT = "VALIDATION_TIME_OUT"
+
+
+class Validation_Worker(multiprocessing.Process):
+
+    def __init__(self, server):
+
+        self.server = server
+
+    def run(self):
+        print 'Validation worker started running'
+
+        while True:
+            if not self.server.validation_queue.empty():
+
+                task = self.server.validation_queue.get()
+
+
+
+
+
 
 class Server():
 
@@ -34,6 +59,7 @@ class Server():
             exit(1)
 
         self.msg_queue = multiprocessing.Queue()
+        self.validation_queue = multiprocessing.Queue()
 
         # worker waits for msg and puts in to queue for further process
         self.msg_worker = Message.Msg_Worker(self, self.sock, self.msg_queue)
@@ -43,6 +69,11 @@ class Server():
 
         # keeps username:session_key
         self.online_users = {}
+
+        # users waiting for validation
+        self.waiting_validation = {}
+
+        self.srp_sessionkeys = {}
 
         # sessionkeys for all users
         self.public_keys = "../data/keys/user_keys/"
@@ -59,12 +90,19 @@ class Server():
             # self.user_SRP_login(msg['msg'], addr)
             print msg
 
-        elif msg['type'] == Message.LIST:
-            # self.user_list_request()
-            print msg
+        # no need fir list
+        # elif msg['type'] == Message.LIST:
+        #     # self.user_list_request()
+        #     print msg
 
         elif msg['type'] == Message.GET_PUB_KEY:
             # self.user_get_key_req(A,B)
+            print msg
+
+        elif msg['type'] == Message.SRP_VALIDATION_1:
+            self.validation_queue.put(msg['msg'])
+
+        elif msg['type'] == Message.LOGOUT:
             print msg
 
     # SRP
@@ -73,26 +111,58 @@ class Server():
         # TODO
         # get user login msg = {'username': self.username, 'A': self.A, 'N': self.N}
 
+        login_msg = json.loads(login_msg)
+
+        # check username
+        if login_msg['username'] == '' or login_msg['username']:
+
+            self.send_error(WRONG_USERNAME_PASSWORD)
+            return
+
+        if login_msg['username'] in self.online_users.keys():
+            self.send_error(USER_ALREADY_LOGGED_IN)
+            return
+
+        if login_msg['A'] % login_msg['N'] == 0:
+            self.send_error(WRONG_USERNAME_PASSWORD)
+            return
+
         SRP_server = CF.SRP_server()
 
-        login_msg = json.loads(login_msg)
         srp_reply, v = SRP_server.srp_server_accept_login(login_msg['username'], login_msg['A'], login_msg['N'])
 
         key = SRP_server.srp_server_sessio_key(login_msg['A'], login_msg['N'], v)
+        self.srp_sessionkeys[login_msg['username']]
 
-        ctr = os.urandom(16)
-        nounce = os.urandom(16)
-        srp_reply['Nounce':CF.aes_ctr(nounce, key, ctr), 'ctr': ctr]
+        # verify key
+        
         self.send_packet(addr[0], int(addr[1]), Message.Message(Message.SRP_REPLY, self.username, srp_reply).json)
 
-        
+        m_1 = str(login_msg['A']) + str(srp_reply['B']) + str(key)
+
+        h = CF.hash_sha256(str(login_msg['A']) + str(CF.hash_sha256(m_1)) + str(key))
+        self.waiting_validation[login_msg['username']] = (0, h)
+
+        t = time.time()
+        while self.waiting_validation[login_msg['username']] == 0:
+
+            if t - time.time() > 15:
+                self.send_error(VALIDATION_TIME_OUT)
+                return
+
+        # validation pass
+
+        self.online_users[login_msg['username']] = addr
+        # send update
+        self.send_update()
 
 
+        # validation, addr = self.sock.recvfrom(1024)
 
-        # TODO
-        # verify proof of session key
+        # if validation['msg']['Nounce_reply'] != nounce:
+        #     self.send_error(WRONG_USERNAME_PASSWORD)
+        #     return
 
-        # self.session_keys[login_msg['username']] = key
 
     def send_packet(self, ip, port, message):
       #it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
