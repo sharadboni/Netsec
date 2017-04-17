@@ -153,7 +153,7 @@ class Client():
 	while True:
 		user_input=raw_input(self.username+" > ").split(' ')
 		if user_input[0].lower()=="list":
-			self.list_users()
+			print self.online_users.keys()
 		elif user_input[0].lower()=="send":
 			ip,port=self.resolve_username(user_input[1])
 			if not self.key_present(user_input[1],"SESSION"):
