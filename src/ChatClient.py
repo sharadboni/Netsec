@@ -1,5 +1,3 @@
-#tcp diffie hellman not in message unmessage format.
-#have to delete session keys once a user log outs
 import sys
 import socket
 import Message
@@ -230,9 +228,12 @@ class Client():
     def delete_user(self,user):
 	for i in user.keys():
 		del self.online_users[i]
+		if i in self.session_keys:
+			del self.session_keys[i]
+		if i in self.public_keys:	
+			del self.public_keys[i]
 	for j in user.values():
 		del self.ip_port_users[i]		
-	
     def key_present(username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
