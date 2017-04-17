@@ -155,16 +155,23 @@ class Client():
     def tcp_establish_key_listener(self,ip,port,username):
 		#create a tcp server
 		tcp_socket = socket.socket()         # Create a socket object
-		host = socket.gethostname() # Get local machine name
+		#host = socket.gethostname() # Get local machine name
+		host='localhost' #for testing
 		port = 12345                # Reserve a port for your service.
 		tcp_socket.bind((host, port))        # Bind to the port
 		tcp_socket.listen(1)
-		p=CF.generate_prime(n=1024)
-		df=CF.Diffie_Hellman(p,2)
+		#p=CF.generate_prime(n=1024) for practical purposes
+		p=11 #for testing
+		g=2 # for testing
 		self.send_packet(ip,port,Message.Message(ESTAB_KEY,self.username,self.public_keys, self.session_keys,username,tcp_port).encrypted_message) #self reports its own tcp_port to the user on the other end
 		conn, addr = tcp_socket.accept()     # Establish connection with client.
-   		conn.send((df.get_public_key(),p))
-		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
+		df=CF.Diffie_Hellman(p,g)
+		pub_k=df.get_public_key()
+   		conn.send(json.dumps({'p':p,'g':g,'public_key':pub_k}))
+		data=json.loads(conn.recv(1024))
+		public_key=data['public_key'] 
+		public_key = CF.serialization.load_pem_public_key(str(public_key), backend=CF.default_backend())
+		shared_key=shared_key=df.df_key_exchange(public_key)
 		self.shared_keys[username]=shared_key	 
 		conn.close() 
 		tcp_socket.close	 
@@ -173,14 +180,22 @@ class Client():
 		
     #tcp_establish_key_sender function helps in the establishment of the shared session key	
     def tcp_establish_key_sender(self,ip,port,username):
-		#opens a tcp port	
-		tcp_socket.connect((host, port))
-		(public_key,p)=tcp_socket.recv(1024)
-		df=CF.Diffie_Hellman(p,2)
-		tcp_socket.send(df.get_public_key())
-		shared_key=df.df_key_exchange(tcp_socket.recv(1024))
+		#opens a tcp port
+		ip='localhost' #for testing purposes
+		tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+		tcp_socket.connect((ip, port))
+		data=json.loads(tcp_socket.recv(1024))
+		p=data['p']
+		public_key=str(data['public_key'])
+		g=data['g']
+		print public_key
+		df=CF.Diffie_Hellman(p,g)
+		pub_k=df.get_public_key()
+		tcp_socket.send(json.dumps({'public_key':pub_k}))
+		public_key = CF.serialization.load_pem_public_key(public_key, backend=CF.default_backend()) 
+		shared_key=df.df_key_exchange(public_key)
 		self.shared_keys[username]=shared_key	 
-		tcp_socket.close 	 
+		tcp_socket.close 	 		
 		#sends a connection response to the listener	
 		#closes the connection	 
 			 
