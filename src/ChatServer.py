@@ -235,7 +235,9 @@ class Server():
             return
 
         resp = {'username': user_B, 'pub_key': pub_b}
-        addr = self.online_users[user_A]
+        addr = self.get_user(user_A)
+        print "requesting user ", addr
+
         self.send_packet(addr[0], int(addr[1]), Message.Message(Message.PUB_KEY, self.username, resp).json)
 
     def send_update(self):
@@ -273,6 +275,21 @@ class Server():
         if uname not in onlines.keys():
             return False
         return True
+
+    def get_user(self, uname):
+        onlines = {}
+        while not self.online_users_queue.empty():
+
+            u = self.online_users_queue.get()
+            print u
+            onlines[u[0]] = (u[1][0], u[1][1])
+        
+        for i in onlines.keys():
+            self.online_users_queue.put((i, onlines[i]))
+
+        if uname not in onlines.keys():
+            return None
+        return onlines[uname]
 
     # get user key
     def get_pub_key_of_user(self, username):

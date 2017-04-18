@@ -10,6 +10,7 @@ import time
 PRIME_SIZE = 1024
 g = 2 #diffie hellman parameter
 
+public_keys = {}
 class Client():
 
     def __init__(self):
@@ -34,7 +35,7 @@ class Client():
 	self.online_users={'server_9090':['127.0.0.1', 9090]} #maps a username to its respective ip and port in the form of tuple (ip,port)
 	self.ip_port_users={('127.0.0.1',9090):'server_9090'} #reverse mapping of (ip,port) to users
 	self.session_keys={} #has public key of the users that the current user has communicated with
-	self.public_keys={} # stores the public keys of the the chat users temporarily and deletes it once the session has been established
+	# self.public_keys={} # stores the public keys of the the chat users temporarily and deletes it once the session has been established
 	try:
 	    self.server_public_key=kf["server_pubkey"] # server public key path
 	    #self.private_key= # no need 	
@@ -134,8 +135,9 @@ class Client():
 
     def logout(self):
 	#will send a logout message to the server so that server will remove the current user from the online list
-	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LOGOUT,self.username, self.public_keys, self.session_keys,'server').encrypted_message)
-	
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.LOGOUT,self.username,'server'))
+	exit(0)
+
     #redundant function list_users won't be used now updates will be broadcasted after a user logs out.	
     def list_users(self):
 	#will send a list user message to the server which will return all the online users
@@ -207,7 +209,7 @@ class Client():
 
 	while not self.key_present(username,"PUBLIC"):
 
-		print 'establishing keys '
+		#print 'establishing keys '
 		pass
 	self.tcp_establish_key_listener(ip,port,username)
 	self.peer_chat(ip,port,msg,username)
@@ -266,7 +268,7 @@ class Client():
     #finds if the session key or public key is present in the internal mappings 
     def key_present(self, username,_key):
 	if _key=="PUBLIC":
-		if username in self.public_keys:
+		if username in public_keys:
 			return True
 		return False
 	
@@ -275,6 +277,7 @@ class Client():
 	return False
 			 
     def receive_message(self):
+	global public_keys
 	#it will receive all kinds of messages and will display the results to the user 
 	while True:
 		input_message,addr=self.sock.recvfrom(1024)
@@ -295,7 +298,8 @@ class Client():
         		except Exception as e:
             			print 'Error while creating threads :', e
 		elif input_message.get_type() == Message.PUB_KEY:
-			 self.public_keys[input_message.get_username()['username']]=input_message.get_message()['pub_key']
+
+			public_keys[input_message.get_username()]= input_message.get_message()['pub_key']
 
 		elif input_message.get_type() == Message.UPDATE_LIST:
 			self.online_users = input_message.msg
