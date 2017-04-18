@@ -106,6 +106,7 @@ def UnMessage_no_encryption(data):
     data = json.loads(data)
     msg = Message(data['type'], data['username'])
 
+    msg.msg = data['msg']
     msg.json = data
     msg.time = data['time']
 

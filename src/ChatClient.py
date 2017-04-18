@@ -31,8 +31,8 @@ class Client():
 	
 	#print int(kf['server_port']), kf["server_ip"] 
 	self.username=None
-	self.online_users={} #maps a username to its respective ip and port in the form of tuple (ip,port)
-	self.ip_port_users={} #reverse mapping of (ip,port) to users
+	self.online_users={'server_9090':['127.0.0.1', 9090]} #maps a username to its respective ip and port in the form of tuple (ip,port)
+	self.ip_port_users={('127.0.0.1',9090):'server_9090'} #reverse mapping of (ip,port) to users
 	self.session_keys={} #has public key of the users that the current user has communicated with
 	self.public_keys={} # stores the public keys of the the chat users temporarily and deletes it once the session has been established
 	try:
@@ -65,16 +65,21 @@ class Client():
 	
 	print 'Waiting for srp login reply...'
 
-
 	t = time.time()
 
 	while not self.loggedin:
 		
 		if time.time() - t > 15:
 			return False
-		
-		srp_reply, addr=self.sock.recvfrom(1024)
+		try:
+			self.sock.settimeout(15.0)
 
+			srp_reply, addr=self.sock.recvfrom(1024)
+	
+			self.sock.settimeout(None)
+		except Exception as e:
+			print "LOGIN TIMEOUT!"
+			return False
 		srp_reply = json.loads(srp_reply)
 		if srp_reply['type'] == Message.SRP_REPLY:
     
@@ -86,7 +91,6 @@ class Client():
 
                 s = str(A) + str(B)+str(server_session_key)
                 m_1 = unicode(CF.hash_sha256(s),errors='replace')
-               	print "string:", s 
 		print 'Sending Message.SRP_VERIFICATION_1'	
 		self.send_packet( self.server_ip , self.server_port, Message.Message(Message.SRP_VERIFICATION_1,self.username, msg=m_1).json) 
                 
@@ -104,7 +108,6 @@ class Client():
 
 #	srp_reply, addr=self.sock.recvfrom(1024)
 	#srp_reply = json.loads(srp_reply)	
-	print 'SRP login reply with B and salt:', srp_reply
 
 	B = srp_reply['msg']['B']
 	salt = srp_reply['msg']['salt']
@@ -115,7 +118,6 @@ class Client():
 	
 		if Key:
 			self.session_keys['server'] = Key
-			print "key : ", Key
 		else:
 			print "!! Login Unsuccessfull"
 			return "SRP_KEY_ERROR"
@@ -141,7 +143,7 @@ class Client():
 	
     def peer_chat(self,ip,port,chat_message,username):
 	#sends the desired message to the fellow chat peer
-	self.send_packet(ip,port,Message.Message(Message.MESSAGE,self.username,self.public_keys, self.session_keys,username,chat_message).encrypted_message)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.MESSAGE,self.username,self.public_keys, self.session_keys,username,chat_message).encrypted_message)
 	
     def send_packet(self,ip,port,message):
 	#it sends all type of packets to the desired destination. It is used by all the other functions to send the desired message
@@ -149,7 +151,7 @@ class Client():
 
     def get_pub_key_from_server(self,username):
 	#request the public key of the chat user from the server
-	self.send_packet(ip,port,Message.Message(Message.GET_PUB_KEY,self.username,self.public_keys, self.session_keys,'server',username).encrypted_message)
+	self.send_packet(self.server_ip,self.server_port,Message.Message(Message.GET_PUB_KEY,self.username,username).json)
     
     #tcp_establish_key_listener function helps in the establishment of the shared session key			 
     def tcp_establish_key_listener(self,ip,port,username):
@@ -187,7 +189,10 @@ class Client():
     def establish_key(self,username,ip,port,msg):
 	#establishes the key with the fellow chat user
 	self.get_pub_key_from_server(username)
+
 	while not self.key_present(username,"PUBLIC"):
+
+		print 'establishing keys '
 		pass
 	self.tcp_establish_key_listener(ip,port,username)
 	self.peer_chat(ip,port,msg,username)
@@ -197,9 +202,11 @@ class Client():
 	while True:
 		user_input=raw_input(self.username+" > ").split(' ')
 		if user_input[0].lower()=="list":
+			# print self.online_users.keys()
 			print self.online_users.keys()
 		elif user_input[0].lower()=="send":
 			ip,port=self.resolve_username(user_input[1])
+			
 			if not self.key_present(user_input[1],"SESSION"):
         			try:
 	    				threading.Thread(target=self.establish_key,args=(user_input[1],ip,port,user_input[2])).start()
@@ -242,7 +249,7 @@ class Client():
 		del self.ip_port_users[i]	
     
     #finds if the session key or public key is present in the internal mappings 
-    def key_present(username,_key):
+    def key_present(self, username,_key):
 	if _key=="PUBLIC":
 		if username in self.public_keys:
 			return True
@@ -257,7 +264,10 @@ class Client():
 	while True:
 		input_message,addr=self.sock.recvfrom(1024)
 		user=self.resolve_ip_port(addr)
-		input_message=Message.UnMessage(input_message,user)
+
+		# TODO
+		# decryption
+		input_message=Message.UnMessage_no_encryption(input_message)
 		if input_message.get_type() == Message.LIST:
 			user_to_delete=input_message.get_message()
 			self.delete_user(user_to_delete)
@@ -272,8 +282,10 @@ class Client():
 		elif input_message.get_type() == Message.PUB_KEY:
 			 self.public_keys[input_message.get_username()['username']]=input_message.get_message()['pub_key']
 
-		elif input_message.get_type() == Message.UPDATE:
-			self.online_users = json.loads(input_message['msg'])
+		elif input_message.get_type() == Message.UPDATE_LIST:
+			self.online_users = input_message.msg
+			
+			self.online_users['server_9090'] = ['127.0.0.1', 9090]
 		else:
 			print "Message received in an unknown format"	
 			 
