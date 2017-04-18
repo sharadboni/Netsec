@@ -51,7 +51,7 @@ class Msg_Worker(multiprocessing.Process):
             except Exception as e:
                 print 'Error while receiving a message', e
 
-
+# this class is to encapsulate the message and encryption functions are used in this file itself
 class Message():
 
     def __init__(self, _type, username, msg=None):
@@ -83,7 +83,7 @@ class Message():
     def get_username(self):
         return self.username
 
-
+#this is to decapsulate the Message file so that we can access the message
 def UnMessage(data, user, public_keys, session_keys):
 
     json_data = json.loads(data)
